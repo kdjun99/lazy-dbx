@@ -146,6 +146,7 @@ func (a *App) applyConnectResult(path string, result domain.Result[domainconn.In
 	info := result.Data
 	a.activeConn = &info
 	a.statusBar.SetConnectionInfo(FormatConnectionInfo(info.Name, info.Type, info.Env))
+	a.statusBar.SetMessage("Connected to "+path, false)
 	a.logger.Info(ctx, "App", "handleSelect", "connected",
 		domainlogger.F("path", path))
 }
