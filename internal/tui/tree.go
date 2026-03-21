@@ -88,6 +88,7 @@ func BuildTreeData(cfg *config.ConnectionsConfig, readonly bool, connectedPaths 
 type ConnectionTree struct {
 	view    *tview.TreeView
 	nodeMap map[string]*tview.TreeNode
+	envMap  map[string]config.Environment
 }
 
 // NewConnectionTree creates a ConnectionTree from BuildTreeData output.
@@ -95,6 +96,7 @@ type ConnectionTree struct {
 func NewConnectionTree(data []TreeNode, onSelect func(path string)) *ConnectionTree {
 	ct := &ConnectionTree{
 		nodeMap: make(map[string]*tview.TreeNode),
+		envMap:  make(map[string]config.Environment),
 	}
 
 	root := tview.NewTreeNode("Connections").
@@ -146,6 +148,7 @@ func (ct *ConnectionTree) buildTviewNode(data TreeNode) *tview.TreeNode {
 		tNode.SetReference(data.Path)
 		tNode.SetColor(EnvColor(data.Env))
 		ct.nodeMap[data.Path] = tNode
+		ct.envMap[data.Path] = data.Env
 	} else {
 		tNode.SetColor(tcell.ColorWhite)
 		tNode.SetExpanded(true)
@@ -159,7 +162,8 @@ func (ct *ConnectionTree) buildTviewNode(data TreeNode) *tview.TreeNode {
 	return tNode
 }
 
-// UpdateNodeStatus updates the icon prefix of a leaf node to reflect connection status.
+// UpdateNodeStatus updates the icon and color of a leaf node to reflect connection status.
+// Connected nodes turn green, connecting nodes turn yellow, disconnected revert to env color.
 func (ct *ConnectionTree) UpdateNodeStatus(path string, status ConnectionStatus) {
 	tNode, ok := ct.nodeMap[path]
 	if !ok {
@@ -171,6 +175,15 @@ func (ct *ConnectionTree) UpdateNodeStatus(path string, status ConnectionStatus)
 		runes := []rune(text)
 		runes[0] = []rune(icon)[0]
 		tNode.SetText(string(runes))
+	}
+
+	switch status {
+	case ConnectionStatusConnected:
+		tNode.SetColor(tcell.ColorGreen)
+	case ConnectionStatusConnecting:
+		tNode.SetColor(tcell.ColorYellow)
+	case ConnectionStatusDisconnected:
+		tNode.SetColor(EnvColor(ct.envMap[path]))
 	}
 }
 
