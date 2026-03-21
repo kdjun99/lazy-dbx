@@ -6,17 +6,16 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-
-	"github.com/kdjun99/lazy-dbx/internal/app"
 )
 
 var pingPath string
 
-func newConnectCmd(svc *app.ConnectionService) *cobra.Command {
+func newConnectCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "connect [path]",
-		Short: "Connect to a database or list configured connections",
-		Long:  "Connect to a database by its dot-separated path (group.subgroup.name), list all connections, or ping a connection.",
+		Use:               "connect [path]",
+		Short:             "Connect to a database or list configured connections",
+		Long:              "Connect to a database by its dot-separated path (group.subgroup.name), list all connections, or ping a connection.",
+		PersistentPreRunE: initService,
 	}
 
 	cmd.Flags().StringVar(&pingPath, "ping", "", "Connect, ping, and disconnect from the specified path")
@@ -26,11 +25,11 @@ func newConnectCmd(svc *app.ConnectionService) *cobra.Command {
 		ctx := cmd.Context()
 
 		if *listFlag {
-			return runConnectList(svc, cmd)
+			return runConnectList(cmd)
 		}
 
 		if pingPath != "" {
-			return runConnectPing(svc, cmd, pingPath)
+			return runConnectPing(cmd, pingPath)
 		}
 
 		if len(args) == 0 {
@@ -50,7 +49,7 @@ func newConnectCmd(svc *app.ConnectionService) *cobra.Command {
 	return cmd
 }
 
-func runConnectList(svc *app.ConnectionService, cmd *cobra.Command) error {
+func runConnectList(cmd *cobra.Command) error {
 	result := svc.ListConnections(cmd.Context())
 	if result.Error != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", result.Error)
@@ -69,7 +68,7 @@ func runConnectList(svc *app.ConnectionService, cmd *cobra.Command) error {
 	return w.Flush()
 }
 
-func runConnectPing(svc *app.ConnectionService, cmd *cobra.Command, path string) error {
+func runConnectPing(cmd *cobra.Command, path string) error {
 	ctx := cmd.Context()
 
 	connectResult := svc.Connect(ctx, path)

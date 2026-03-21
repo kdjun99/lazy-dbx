@@ -12,22 +12,21 @@ import (
 	infraconfig "github.com/kdjun99/lazy-dbx/internal/infra/config"
 	infraconn "github.com/kdjun99/lazy-dbx/internal/infra/connection"
 	infralogger "github.com/kdjun99/lazy-dbx/internal/infra/logger"
-	"github.com/kdjun99/lazy-dbx/internal/infra/mysql"
+	inframysql "github.com/kdjun99/lazy-dbx/internal/infra/mysql"
 	infrapassword "github.com/kdjun99/lazy-dbx/internal/infra/password"
-	"github.com/kdjun99/lazy-dbx/internal/infra/postgres"
+	infrapg "github.com/kdjun99/lazy-dbx/internal/infra/postgres"
 	infratunnel "github.com/kdjun99/lazy-dbx/internal/infra/tunnel"
 )
 
-var configDir string
+var (
+	configDir string
+	svc       *app.ConnectionService
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "lazy-dbx",
 	Short: "Terminal-based Database IDE",
 	Long:  "lazy-dbx is a terminal-based Database IDE with connection management, SSH tunneling, and production safety features.",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("lazy-dbx — Terminal Database IDE")
-		fmt.Println("Run 'lazy-dbx --help' for usage.")
-	},
 }
 
 func Execute() {
@@ -37,31 +36,30 @@ func Execute() {
 	}
 }
 
+func initService(cmd *cobra.Command, args []string) error {
+	dir, err := resolveConfigDir(configDir)
+	if err != nil {
+		return fmt.Errorf("resolving config dir: %w", err)
+	}
+
+	logPath := filepath.Join(dir, "debug.log")
+	var log domainlogger.Logger
+	jsonLog, logErr := infralogger.New(logPath)
+	if logErr != nil {
+		log = infralogger.NewNopLogger()
+	} else {
+		log = jsonLog
+	}
+
+	svc = buildService(dir, log)
+	return nil
+}
+
 func init() {
 	rootCmd.PersistentFlags().StringVar(&configDir, "config", "", "Config directory (default: ~/.config/lazy-dbx)")
 
-	cobra.OnInitialize(func() {
-		dir, err := resolveConfigDir(configDir)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error resolving config dir: %v\n", err)
-			os.Exit(1)
-		}
-
-		logPath := filepath.Join(dir, "debug.log")
-		log, err := infralogger.New(logPath)
-		if err != nil {
-			// Fall back to nop logger if log file cannot be opened
-			nop := infralogger.NewNopLogger()
-			svc := buildService(dir, nop)
-			rootCmd.AddCommand(newConnectCmd(svc))
-			rootCmd.AddCommand(newConfigCmd(svc))
-			return
-		}
-
-		svc := buildService(dir, log)
-		rootCmd.AddCommand(newConnectCmd(svc))
-		rootCmd.AddCommand(newConfigCmd(svc))
-	})
+	rootCmd.AddCommand(newConnectCmd())
+	rootCmd.AddCommand(newConfigCmd())
 }
 
 func buildService(dir string, log domainlogger.Logger) *app.ConnectionService {
@@ -70,8 +68,8 @@ func buildService(dir string, log domainlogger.Logger) *app.ConnectionService {
 		Loader:           infraconfig.NewTOMLLoader(),
 		PasswordResolver: infrapassword.NewMultiResolver(log),
 		TunnelManager:    infratunnel.NewTunnelManager(),
-		MySQLConnector:   &mysql.Connector{},
-		PGConnector:      &postgres.Connector{},
+		MySQLConnector:   &inframysql.Connector{},
+		PGConnector:      &infrapg.Connector{},
 		Pool:             infraconn.NewInMemoryPool(),
 		Logger:           log,
 	})

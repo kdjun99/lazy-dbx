@@ -5,23 +5,22 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-
-	"github.com/kdjun99/lazy-dbx/internal/app"
 )
 
-func newConfigCmd(svc *app.ConnectionService) *cobra.Command {
+func newConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "config",
-		Short: "Inspect and validate configuration",
+		Use:               "config",
+		Short:             "Inspect and validate configuration",
+		PersistentPreRunE: initService,
 	}
 
-	cmd.AddCommand(newConfigValidateCmd(svc))
-	cmd.AddCommand(newConfigShowCmd(svc))
+	cmd.AddCommand(newConfigValidateCmd())
+	cmd.AddCommand(newConfigShowCmd())
 
 	return cmd
 }
 
-func newConfigValidateCmd(svc *app.ConnectionService) *cobra.Command {
+func newConfigValidateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "validate",
 		Short: "Parse and validate connections.toml without connecting",
@@ -39,7 +38,7 @@ func newConfigValidateCmd(svc *app.ConnectionService) *cobra.Command {
 	}
 }
 
-func newConfigShowCmd(svc *app.ConnectionService) *cobra.Command {
+func newConfigShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show",
 		Short: "Show all configured connections",
