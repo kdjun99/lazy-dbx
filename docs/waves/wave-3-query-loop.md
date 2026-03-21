@@ -6,13 +6,13 @@
 
 | # | Feature | Description | Status |
 |---|---------|-------------|--------|
-| T4 | Query Editor panel | Top-right SQL input area | Not Started |
-| T5 | Query Results panel | Bottom-right result table | Not Started |
-| E1 | SQL input & execution | Basic text input + `Ctrl+E` execute | Not Started |
-| R1 | Paginated table view | Configurable page size from settings | Not Started |
-| R2 | Horizontal/vertical scroll | Navigate wide result sets | Not Started |
-| R4 | Row count display | Show total rows returned | Not Started |
-| R5 | Execution time display | Show query duration | Not Started |
+| T4 | Query Editor panel | Top-right SQL input area | **Done** |
+| T5 | Query Results panel | Bottom-right result table | **Done** |
+| E1 | SQL input & execution | Basic text input + `Ctrl+E` execute | **Done** |
+| R1 | Paginated table view | Configurable page size from settings | **Done** |
+| R2 | Horizontal/vertical scroll | Navigate wide result sets | **Done** |
+| R4 | Row count display | Show total rows returned | **Done** |
+| R5 | Execution time display | Show query duration | **Done** |
 
 ## Implementation Notes
 
@@ -37,7 +37,7 @@
   - Bottom: status bar (existing)
 
 ## Done Criteria
-- [ ] Full 4-panel layout renders correctly
-- [ ] User can type SQL in editor and execute with Ctrl+E
-- [ ] Results display in paginated table with scroll
-- [ ] Row count and execution time shown
+- [x] Full 4-panel layout renders correctly
+- [x] User can type SQL in editor and execute with Ctrl+E
+- [x] Results display in paginated table with scroll
+- [x] Row count and execution time shown
