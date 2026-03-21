@@ -6,21 +6,21 @@
 
 | # | Feature | Description | Status |
 |---|---------|-------------|--------|
-| C1 | TOML config loading | Parse `~/.config/lazy-dbx/connections.toml` | Not Started |
-| C2 | Settings loading | Parse `~/.config/lazy-dbx/settings.toml` | Not Started |
-| C3 | Hierarchical connection structure | `group > subgroup > connection` tree | Not Started |
-| C15 | Environment tagging | `production`, `staging`, `test` labels | Not Started |
-| C4 | MySQL driver connection | `go-sql-driver/mysql` based | Not Started |
-| C5 | PostgreSQL driver connection | `lib/pq` based | Not Started |
-| C6 | Connection pool management | Create / reuse / close lifecycle | Not Started |
-| C11 | password_cmd | Shell command to fetch password (AWS SM, 1Password, etc.) | Not Started |
-| C12 | Env var password | `$DB_PASSWORD_<NAME>` support | Not Started |
-| C13 | Prompt password | Interactive input on connect | Not Started |
-| C14 | Plaintext password (with warning) | Direct in config + warning | Not Started |
-| C7 | SSH tunneling | Tunnel via bastion (`golang.org/x/crypto/ssh`) | Not Started |
-| C8 | SSH key auth | `~/.ssh/id_ed25519` key file support | Not Started |
-| C9 | ssh-agent support | System ssh-agent integration | Not Started |
-| C10 | Reusable tunnel definitions | Shared `ssh_tunnels` section in config | Not Started |
+| C1 | TOML config loading | Parse `~/.config/lazy-dbx/connections.toml` | Done |
+| C2 | Settings loading | Parse `~/.config/lazy-dbx/settings.toml` | Done |
+| C3 | Hierarchical connection structure | `group > subgroup > connection` tree | Done |
+| C15 | Environment tagging | `production`, `staging`, `test` labels | Done |
+| C4 | MySQL driver connection | `go-sql-driver/mysql` based | Done |
+| C5 | PostgreSQL driver connection | `lib/pq` based | Done |
+| C6 | Connection pool management | Create / reuse / close lifecycle | Done |
+| C11 | password_cmd | Shell command to fetch password (AWS SM, 1Password, etc.) | Done |
+| C12 | Env var password | `$DB_PASSWORD_<NAME>` support | Done |
+| C13 | Prompt password | Interactive input on connect | Done |
+| C14 | Plaintext password (with warning) | Direct in config + warning | Done |
+| C7 | SSH tunneling | Tunnel via bastion (`golang.org/x/crypto/ssh`) | Done |
+| C8 | SSH key auth | `~/.ssh/id_ed25519` key file support | Done |
+| C9 | ssh-agent support | System ssh-agent integration | Done |
+| C10 | Reusable tunnel definitions | Shared `ssh_tunnels` section in config | Done |
 
 ## Implementation Notes
 
@@ -47,7 +47,7 @@
 - Clean shutdown: close tunnel when connection is released
 
 ## Done Criteria
-- [ ] `lazy-dbx` can parse a sample `connections.toml` with MySQL + PostgreSQL entries
-- [ ] `lazy-dbx` can connect to MySQL and PostgreSQL through SSH tunnel
-- [ ] All 4 password methods work
-- [ ] Connection pool properly manages lifecycle
+- [x] `lazy-dbx` can parse a sample `connections.toml` with MySQL + PostgreSQL entries
+- [x] `lazy-dbx` can connect to MySQL and PostgreSQL through SSH tunnel
+- [x] All 4 password methods work
+- [x] Connection pool properly manages lifecycle
