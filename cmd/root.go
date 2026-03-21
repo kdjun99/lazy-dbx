@@ -16,10 +16,12 @@ import (
 	infrapassword "github.com/kdjun99/lazy-dbx/internal/infra/password"
 	infrapg "github.com/kdjun99/lazy-dbx/internal/infra/postgres"
 	infratunnel "github.com/kdjun99/lazy-dbx/internal/infra/tunnel"
+	"github.com/kdjun99/lazy-dbx/internal/tui"
 )
 
 var (
 	configDir string
+	noTUI     bool
 	svc       *app.ConnectionService
 )
 
@@ -27,6 +29,12 @@ var rootCmd = &cobra.Command{
 	Use:   "lazy-dbx",
 	Short: "Terminal-based Database IDE",
 	Long:  "lazy-dbx is a terminal-based Database IDE with connection management, SSH tunneling, and production safety features.",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if noTUI {
+			return cmd.Help()
+		}
+		return runTUI(cmd)
+	},
 }
 
 func Execute() {
@@ -36,27 +44,59 @@ func Execute() {
 	}
 }
 
-func initService(cmd *cobra.Command, args []string) error {
-	dir, err := resolveConfigDir(configDir)
-	if err != nil {
-		return fmt.Errorf("resolving config dir: %w", err)
+func initService(_ *cobra.Command, _ []string) error {
+	dir, log := initLogger(configDir)
+	if dir == "" {
+		return fmt.Errorf("resolving config dir")
 	}
-
-	logPath := filepath.Join(dir, "debug.log")
-	var log domainlogger.Logger
-	jsonLog, logErr := infralogger.New(logPath)
-	if logErr != nil {
-		log = infralogger.NewNopLogger()
-	} else {
-		log = jsonLog
-	}
-
 	svc = buildService(dir, log)
 	return nil
 }
 
+func runTUI(_ *cobra.Command) error {
+	dir, log := initLogger(configDir)
+
+	loader := infraconfig.NewTOMLLoader()
+
+	connResult, err := loader.LoadConnections(filepath.Join(dir, "connections.toml"))
+	if err != nil {
+		return fmt.Errorf("loading connections config: %w", err)
+	}
+	if connResult.Error != nil {
+		return fmt.Errorf("loading connections config: %w", connResult.Error)
+	}
+
+	settingsResult, err := loader.LoadSettings(filepath.Join(dir, "settings.toml"))
+	if err != nil {
+		return fmt.Errorf("loading settings config: %w", err)
+	}
+	if settingsResult.Error != nil {
+		return fmt.Errorf("loading settings config: %w", settingsResult.Error)
+	}
+
+	service := buildService(dir, log)
+
+	tuiApp := tui.NewApp(service, connResult.Data, settingsResult.Data, log)
+	return tuiApp.Run()
+}
+
+func initLogger(cfgDir string) (string, domainlogger.Logger) {
+	dir, err := resolveConfigDir(cfgDir)
+	if err != nil {
+		return "", infralogger.NewNopLogger()
+	}
+
+	logPath := filepath.Join(dir, "debug.log")
+	jsonLog, logErr := infralogger.New(logPath)
+	if logErr != nil {
+		return dir, infralogger.NewNopLogger()
+	}
+	return dir, jsonLog
+}
+
 func init() {
 	rootCmd.PersistentFlags().StringVar(&configDir, "config", "", "Config directory (default: ~/.config/lazy-dbx)")
+	rootCmd.Flags().BoolVar(&noTUI, "no-tui", false, "Print help instead of launching TUI")
 
 	rootCmd.AddCommand(newConnectCmd())
 	rootCmd.AddCommand(newConfigCmd())
