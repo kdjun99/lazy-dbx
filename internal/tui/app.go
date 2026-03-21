@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/rivo/tview"
 
@@ -10,6 +11,7 @@ import (
 	domainconfig "github.com/kdjun99/lazy-dbx/internal/domain/config"
 	domainconn "github.com/kdjun99/lazy-dbx/internal/domain/connection"
 	domainlogger "github.com/kdjun99/lazy-dbx/internal/domain/logger"
+	"github.com/kdjun99/lazy-dbx/internal/domain/query"
 )
 
 // App is the main TUI application wrapping tview.Application.
@@ -19,18 +21,26 @@ type App struct {
 	statusBar       *StatusBar
 	focusManager    *FocusManager
 	manager         domainconn.Manager
+	executor        query.Executor
+	editor          *QueryEditor
+	results         *ResultsTable
 	logger          domainlogger.Logger
 	connectedPaths  map[string]bool
 	connectingPaths map[string]bool
 	activeConn      *domainconn.Info
 	readonly        bool
 	cfg             *domainconfig.ConnectionsConfig
+	isExecuting     bool
+	cancelQuery     context.CancelFunc
+	pageSize        int
 }
 
 // NewApp constructs the full TUI application.
-// manager handles connection lifecycle; cfg and settings are loaded once at startup.
+// manager handles connection lifecycle; executor runs SQL queries;
+// cfg and settings are loaded once at startup.
 func NewApp(
 	manager domainconn.Manager,
+	executor query.Executor,
 	cfg *domainconfig.ConnectionsConfig,
 	settings *domainconfig.SettingsConfig,
 	log domainlogger.Logger,
@@ -38,14 +48,19 @@ func NewApp(
 	a := &App{
 		tviewApp:        tview.NewApplication(),
 		manager:         manager,
+		executor:        executor,
 		logger:          log,
 		connectedPaths:  make(map[string]bool),
 		connectingPaths: make(map[string]bool),
 		cfg:             cfg,
+		pageSize:        100,
 	}
 
 	if settings != nil {
 		a.readonly = settings.Safety.ReadonlyByDefault
+		if settings.UI.ResultPageSize > 0 {
+			a.pageSize = settings.UI.ResultPageSize
+		}
 	}
 
 	// Build tree data from config (nil or empty config shows placeholder).
@@ -62,19 +77,20 @@ func NewApp(
 
 	a.statusBar = NewStatusBar()
 	a.statusBar.SetApp(a.tviewApp)
-	a.statusBar.SetKeybindings("Ctrl+Q:Quit  Tab:Focus  Enter:Connect")
+	a.statusBar.SetKeybindings("Ctrl+Q:Quit  Tab:Focus  Ctrl+E:Execute  Enter:Connect")
 	a.statusBar.SetMode(a.readonly)
 
-	welcomePanel := NewWelcomePanel()
+	a.editor = NewQueryEditor()
+	a.results = NewResultsTable()
 
-	a.focusManager = NewFocusManager(a.tviewApp, a.tree.Widget(), welcomePanel)
+	a.focusManager = NewFocusManager(a.tviewApp, a.tree.Widget(), a.editor.Widget(), a.results.Widget())
 
-	layout := BuildLayout(a.tree.Widget(), welcomePanel, a.statusBar.Widget())
+	layout := BuildLayout(a.tree.Widget(), a.editor.Widget(), a.results.Widget(), a.statusBar.Widget())
 	a.tviewApp.SetRoot(layout, true)
 
 	RegisterKeybindings(a.tviewApp, a.focusManager, func() {
 		a.tviewApp.Stop()
-	})
+	}, a.handleExecute)
 
 	log.Info(context.Background(), "App", "NewApp", "TUI initialized",
 		domainlogger.F("readonly", fmt.Sprintf("%v", a.readonly)))
@@ -189,4 +205,62 @@ func (a *App) applyDisconnectResult(path string, result domain.Result[struct{}])
 	a.logger.Info(ctx, "App", "handleDisconnect", "disconnected",
 		domainlogger.F("path", path))
 	a.statusBar.SetMessage("Disconnected from "+path, false)
+}
+
+// handleExecute runs the SQL from the editor against the active connection.
+func (a *App) handleExecute() {
+	if a.isExecuting {
+		return
+	}
+	if a.activeConn == nil {
+		a.statusBar.SetMessage("No active connection. Connect first.", true)
+		return
+	}
+	sql := a.editor.GetText()
+	if strings.TrimSpace(sql) == "" {
+		a.statusBar.SetMessage("Empty query", true)
+		return
+	}
+	a.isExecuting = true
+	a.statusBar.SetMessage("Executing query...", false)
+	ctx, cancel := context.WithCancel(context.Background())
+	a.cancelQuery = cancel
+	a.logger.Info(ctx, "App", "handleExecute", "executing",
+		domainlogger.F("path", a.activeConn.Path))
+
+	go func() {
+		defer cancel()
+		result := a.executor.Execute(ctx, a.activeConn.Path, sql)
+		a.tviewApp.QueueUpdateDraw(func() {
+			a.applyResult(result)
+		})
+	}()
+}
+
+// applyResult updates UI state after a query execution completes.
+// Extracted from the goroutine for testability.
+func (a *App) applyResult(result domain.Result[query.Result]) {
+	a.isExecuting = false
+	a.cancelQuery = nil
+	ctx := context.Background()
+
+	if result.Error != nil {
+		a.results.ShowError(result.Error.Error())
+		a.statusBar.SetMessage(result.Error.Error(), true)
+		a.logger.Error(ctx, "App", "handleExecute", "query failed",
+			domainlogger.F("error", result.Error.Error()))
+		return
+	}
+
+	data := result.Data
+	if data.Type == query.StatementExec {
+		a.results.ShowExecResult(data.RowsAffected, data.Duration)
+		a.statusBar.SetMessage(fmt.Sprintf("%d rows affected (%s)", data.RowsAffected, data.Duration), false)
+	} else {
+		a.results.SetData(&data, a.pageSize)
+		a.statusBar.SetMessage(fmt.Sprintf("Query completed: %d rows in %s", data.TotalRows, data.Duration), false)
+	}
+	a.logger.Info(ctx, "App", "handleExecute", "completed",
+		domainlogger.F("type", data.Type),
+		domainlogger.F("duration_ms", data.Duration.Milliseconds()))
 }

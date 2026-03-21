@@ -244,6 +244,11 @@ func (s *ConnectionService) ValidateConfig(ctx context.Context) domain.Result[Va
 	return domain.Result[ValidationReport]{Data: report}
 }
 
+// GetPool returns the connection pool managed by this service.
+func (s *ConnectionService) GetPool() domainconn.Pool {
+	return s.cfg.Pool
+}
+
 // Shutdown gracefully closes all connections and tunnels.
 func (s *ConnectionService) Shutdown(ctx context.Context) {
 	s.cfg.Logger.Info(ctx, "ConnectionService", "Shutdown", "closing all connections")

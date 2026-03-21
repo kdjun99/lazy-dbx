@@ -34,6 +34,11 @@ func TestDispatchKeyAction(t *testing.T) {
 			expected: "focus_prev",
 		},
 		{
+			name:     "CtrlE executes",
+			event:    tcell.NewEventKey(tcell.KeyCtrlE, 0, tcell.ModNone),
+			expected: "execute",
+		},
+		{
 			name:     "Esc is no-op",
 			event:    tcell.NewEventKey(tcell.KeyEsc, 0, tcell.ModNone),
 			expected: "noop",
