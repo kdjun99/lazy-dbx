@@ -1,0 +1,22 @@
+[editor]
+tab_size = 4
+word_wrap = true
+theme = "dark"
+
+[safety]
+confirm_dml = true
+confirm_ddl = true
+confirm_drop = true
+readonly_by_default = false
+
+[audit]
+enabled = true
+log_path = "~/.config/lazy-dbx/audit.log"
+
+[ui]
+mouse_enabled = true
+refresh_rate = "100ms"
+
+[logging]
+log_path = "~/.config/lazy-dbx/debug.log"
+level = "info"

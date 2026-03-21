@@ -118,7 +118,7 @@ linters-settings:
           - $gostd
           - github.com/kdjun99/lazy-dbx/internal/domain
           - github.com/kdjun99/lazy-dbx/internal/infra
-          - github.com/pelletier/go-toml
+          - github.com/pelletier/go-toml/v2
           - github.com/go-sql-driver/mysql
           - github.com/lib/pq
           - golang.org/x/crypto
@@ -138,6 +138,7 @@ issues:
         - errcheck
         - gosec
         - revive
+        - depguard
 
   max-issues-per-linter: 0
   max-same-issues: 0

@@ -1,0 +1,7 @@
+[groups.prod.write.main-db]
+type = "oracle"
+host = "db.prod.example.com"
+port = 1521
+user = "app"
+database = "appdb"
+env = "production"

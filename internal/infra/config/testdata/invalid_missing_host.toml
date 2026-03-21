@@ -1,0 +1,7 @@
+[groups.prod.write.main-db]
+type = "mysql"
+# host is intentionally missing
+port = 3306
+user = "app"
+database = "appdb"
+env = "production"

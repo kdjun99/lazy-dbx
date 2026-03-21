@@ -1,0 +1,5 @@
+[groups.dev.write.local]
+type = "mysql"
+host = "localhost"
+user = "root"
+database = "mydb"
