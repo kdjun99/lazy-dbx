@@ -1,154 +1,142 @@
-run:
-  timeout: 3m
-
+version: "2"
 linters:
   enable:
-    # Bugs & correctness
-    - errcheck          # unchecked errors
-    - gosimple          # simplify code
-    - govet             # go vet
-    - ineffassign       # useless assignments
-    - staticcheck       # advanced static analysis
-    - unused            # unused code
-    - typecheck         # type checking
-
-    # Error handling (core convention: no silent failures)
-    - nilerr            # returning nil when err is not nil
-    - errname           # error variable naming (ErrFoo)
-
-    # Style & consistency
-    - gofmt             # formatting
-    - goimports         # import ordering
-    - revive            # extensible linter (replaces golint)
-    - misspell          # typos in comments/strings
-    - unconvert         # unnecessary type conversions
-    - whitespace        # unnecessary blank lines
-
-    # Complexity
-    - gocyclo           # cyclomatic complexity
-    - nestif            # deeply nested ifs
-
-    # Performance
-    - prealloc          # slice preallocation hints
-    - bodyclose         # http response body not closed
-
-    # Security
-    - gosec             # security issues
-
-    # Architecture
-    - depguard          # layer dependency enforcement
-
+    - bodyclose
+    - depguard
+    - errname
+    - gocyclo
+    - gosec
+    - misspell
+    - nestif
+    - nilerr
+    - prealloc
+    - revive
+    - unconvert
+    - whitespace
   disable:
-    - funlen            # trust developer judgment on function length
-
-linters-settings:
-  gocyclo:
-    min-complexity: 15
-
-  nestif:
-    min-complexity: 4
-
-  revive:
+    - funlen
+  settings:
+    depguard:
+      rules:
+        app-layer:
+          list-mode: strict
+          files:
+            - '**/internal/app/**'
+          allow:
+            - $gostd
+            - github.com/kdjun99/lazy-dbx/internal/domain
+            - github.com/kdjun99/lazy-dbx/internal/app
+            - github.com/stretchr/testify
+            - github.com/testcontainers/testcontainers-go
+            - go.uber.org/mock
+        domain-layer:
+          list-mode: strict
+          files:
+            - '**/internal/domain/**'
+          allow:
+            - $gostd
+            - github.com/kdjun99/lazy-dbx/internal/domain
+            - github.com/stretchr/testify
+            - go.uber.org/mock
+        infra-layer:
+          list-mode: strict
+          files:
+            - '**/internal/infra/**'
+          allow:
+            - $gostd
+            - github.com/kdjun99/lazy-dbx/internal/domain
+            - github.com/kdjun99/lazy-dbx/internal/infra
+            - github.com/pelletier/go-toml/v2
+            - github.com/go-sql-driver/mysql
+            - github.com/lib/pq
+            - golang.org/x/crypto
+            - github.com/sahilm/fuzzy
+            - github.com/stretchr/testify
+            - github.com/testcontainers/testcontainers-go
+            - go.uber.org/mock
+        tui-layer:
+          list-mode: strict
+          files:
+            - '**/internal/tui/**'
+          allow:
+            - $gostd
+            - github.com/kdjun99/lazy-dbx/internal/tui
+            - github.com/kdjun99/lazy-dbx/internal/domain
+            - github.com/rivo/tview
+            - github.com/gdamore/tcell
+            - github.com/stretchr/testify
+            - go.uber.org/mock
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+    gocyclo:
+      min-complexity: 15
+    gosec:
+      excludes:
+        - G104
+    nestif:
+      min-complexity: 4
+    revive:
+      rules:
+        - name: exported
+          arguments:
+            - checkPrivateReceivers
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: increment-decrement
+        - name: var-naming
+        - name: package-comments
+          disabled: true
+        - name: range
+        - name: receiver-naming
+        - name: indent-error-flow
+        - name: superfluous-else
+        - name: unreachable-code
+        - name: unused-parameter
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
     rules:
-      - name: exported
-        arguments:
-          - "checkPrivateReceivers"
-      - name: blank-imports
-      - name: context-as-argument
-      - name: context-keys-type
-      - name: dot-imports
-      - name: error-return
-      - name: error-strings
-      - name: error-naming
-      - name: increment-decrement
-      - name: var-naming
-      - name: package-comments
-        disabled: true  # not needed for internal packages
-      - name: range
-      - name: receiver-naming
-      - name: indent-error-flow
-      - name: superfluous-else
-      - name: unreachable-code
-      - name: unused-parameter
-
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-    exclude-functions:
-      - fmt.Fprint
-      - fmt.Fprintf
-      - fmt.Fprintln
-
-  gosec:
-    excludes:
-      - G104  # we handle this via errcheck
-
-  goimports:
-    local-prefixes: github.com/kdjun99/lazy-dbx
-
-  depguard:
-    rules:
-      # TUI layer: only domain packages allowed (no infra, no DB drivers)
-      tui-layer:
-        files:
-          - "**/internal/tui/**"
-        list-mode: strict
-        allow:
-          - $gostd
-          - github.com/kdjun99/lazy-dbx/internal/tui
-          - github.com/kdjun99/lazy-dbx/internal/domain
-          - github.com/rivo/tview
-          - github.com/gdamore/tcell
-
-      # Domain layer: stdlib only, no infra, no tui, no third-party DB/SSH libs
-      domain-layer:
-        files:
-          - "**/internal/domain/**"
-        list-mode: strict
-        allow:
-          - $gostd
-          - github.com/kdjun99/lazy-dbx/internal/domain
-
-      # Infrastructure layer: domain + third-party allowed, no tui
-      infra-layer:
-        files:
-          - "**/internal/infra/**"
-        list-mode: strict
-        allow:
-          - $gostd
-          - github.com/kdjun99/lazy-dbx/internal/domain
-          - github.com/kdjun99/lazy-dbx/internal/infra
-          - github.com/pelletier/go-toml/v2
-          - github.com/go-sql-driver/mysql
-          - github.com/lib/pq
-          - golang.org/x/crypto
-          - github.com/sahilm/fuzzy
-
-      # Application layer: domain only, no infra/tui direct imports
-      app-layer:
-        files:
-          - "**/internal/app/**"
-        list-mode: strict
-        allow:
-          - $gostd
-          - github.com/kdjun99/lazy-dbx/internal/domain
-          - github.com/kdjun99/lazy-dbx/internal/app
-
+      - linters:
+          - revive
+        path: cmd/
+        text: unused-parameter
+      - linters:
+          - errcheck
+          - gosec
+          - revive
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  exclude-rules:
-    # Cobra command handlers have fixed signature (cmd, args)
-    - path: cmd/
-      linters:
-        - revive
-      text: "unused-parameter"
-
-    # Test files: relax some rules
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
-        - revive
-        - depguard
-
   max-issues-per-linter: 0
   max-same-issues: 0
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/kdjun99/lazy-dbx
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

@@ -148,7 +148,7 @@ func buildAuthMethods(config domaintunnel.Config) ([]ssh.AuthMethod, error) {
 		if sock == "" {
 			return nil, fmt.Errorf("%w: SSH_AUTH_SOCK not set but use_agent=true", domaintunnel.ErrTunnelFailed)
 		}
-		conn, err := net.Dial("unix", sock)
+		conn, err := net.Dial("unix", sock) //nolint:gosec // sock comes from trusted SSH_AUTH_SOCK env var
 		if err != nil {
 			return nil, fmt.Errorf("%w: connecting to SSH agent: %v", domaintunnel.ErrTunnelFailed, err)
 		}

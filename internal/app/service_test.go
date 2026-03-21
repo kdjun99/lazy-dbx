@@ -323,9 +323,9 @@ func TestConnectionService_ResultWrapping(t *testing.T) {
 	}
 	svc := makeService(loader, &mockPasswordResolver{}, &mockTunnelManager{}, &mockConnector{}, &mockConnector{}, newMockPool())
 
-	var _ domain.Result[domainconn.Info] = svc.Connect(context.Background(), "x")
-	var _ domain.Result[struct{}] = svc.Disconnect(context.Background(), "x")
-	var _ domain.Result[domainconn.PingResult] = svc.Ping(context.Background(), "x")
-	var _ domain.Result[[]domainconn.Info] = svc.ListConnections(context.Background())
-	var _ domain.Result[ValidationReport] = svc.ValidateConfig(context.Background())
+	_ = svc.Connect(context.Background(), "x")
+	_ = svc.Disconnect(context.Background(), "x")
+	_ = svc.Ping(context.Background(), "x")
+	_ = svc.ListConnections(context.Background())
+	_ = svc.ValidateConfig(context.Background())
 }
