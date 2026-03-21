@@ -3,7 +3,6 @@ package tui
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/rivo/tview"
 
@@ -216,8 +215,8 @@ func (a *App) handleExecute() {
 		a.statusBar.SetMessage("No active connection. Connect first.", true)
 		return
 	}
-	sql := a.editor.GetText()
-	if strings.TrimSpace(sql) == "" {
+	sql := a.editor.GetQueryAtCursor()
+	if sql == "" {
 		a.statusBar.SetMessage("Empty query", true)
 		return
 	}
