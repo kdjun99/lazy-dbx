@@ -302,3 +302,169 @@ func TestApplyDisconnectResult_OtherActiveConnUntouched(t *testing.T) {
 	require.NotNil(t, a.activeConn)
 	assert.Equal(t, "g.s.other", a.activeConn.Path)
 }
+
+// --- Scenario tests: verify tree icon + status bar + state together ---
+
+func testConfig() *domainconfig.ConnectionsConfig {
+	return &domainconfig.ConnectionsConfig{
+		Groups: map[string]*domainconfig.Group{
+			"local": {
+				Subgroups: map[string]*domainconfig.Subgroup{
+					"mysql": {
+						Connections: map[string]domainconfig.ConnectionEntry{
+							"dev-db": {Name: "dev-db", Type: "mysql", Env: "test"},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+const testPath = "local.mysql.dev-db"
+
+func treeNodeIcon(a *App, path string) string {
+	tNode, ok := a.tree.nodeMap[path]
+	if !ok {
+		return ""
+	}
+	runes := []rune(tNode.GetText())
+	if len(runes) == 0 {
+		return ""
+	}
+	return string(runes[0])
+}
+
+func TestScenario_ConnectSuccess_TreeIconAndStatusBar(t *testing.T) {
+	log := &capturingLogger{}
+	mgr := &mockConnectionManager{}
+	a := NewApp(mgr, testConfig(), nil, log)
+
+	// Before connect: icon is ○ (disconnected).
+	assert.Equal(t, "○", treeNodeIcon(a, testPath))
+
+	// Simulate connect initiation.
+	a.connectingPaths[testPath] = true
+	a.statusBar.SetMessage("Connecting to "+testPath+"...", false)
+	a.tree.UpdateNodeStatus(testPath, ConnectionStatusConnecting)
+
+	// During connect: icon is ◌ (connecting), status bar shows connecting message.
+	assert.Equal(t, "◌", treeNodeIcon(a, testPath))
+	assert.Contains(t, a.statusBar.widget.GetText(false), "Connecting to "+testPath)
+
+	// Simulate connect result (success).
+	result := domain.Result[domainconn.Info]{
+		Data: domainconn.Info{Path: testPath, Name: "dev-db", Type: "mysql", Env: "test"},
+	}
+	a.applyConnectResult(testPath, result)
+
+	// After connect: icon is ● (connected), status bar shows connection info.
+	assert.Equal(t, "●", treeNodeIcon(a, testPath))
+	assert.True(t, a.connectedPaths[testPath])
+	require.NotNil(t, a.activeConn)
+	assert.Equal(t, testPath, a.activeConn.Path)
+	assert.True(t, log.hasEntry("info", "connected"))
+}
+
+func TestScenario_ConnectError_TreeIconAndStatusBar(t *testing.T) {
+	log := &capturingLogger{}
+	mgr := &mockConnectionManager{}
+	a := NewApp(mgr, testConfig(), nil, log)
+
+	// Set up connecting state.
+	a.connectingPaths[testPath] = true
+	a.tree.UpdateNodeStatus(testPath, ConnectionStatusConnecting)
+	assert.Equal(t, "◌", treeNodeIcon(a, testPath))
+
+	// Simulate connect error.
+	result := domain.Result[domainconn.Info]{
+		Error: errors.New("connection refused"),
+	}
+	a.applyConnectResult(testPath, result)
+
+	// After error: icon reverts to ○, status bar shows red error.
+	assert.Equal(t, "○", treeNodeIcon(a, testPath))
+	assert.False(t, a.connectedPaths[testPath])
+	assert.Nil(t, a.activeConn)
+	statusText := a.statusBar.widget.GetText(false)
+	assert.Contains(t, statusText, "connection refused")
+	assert.Contains(t, statusText, "[red]")
+	assert.True(t, log.hasEntry("error", "connect failed"))
+}
+
+func TestScenario_DisconnectSuccess_TreeIconAndStatusBar(t *testing.T) {
+	log := &capturingLogger{}
+	mgr := &mockConnectionManager{}
+	a := NewApp(mgr, testConfig(), nil, log)
+
+	// Set up connected state.
+	a.connectedPaths[testPath] = true
+	a.activeConn = &domainconn.Info{Path: testPath, Name: "dev-db"}
+	a.tree.UpdateNodeStatus(testPath, ConnectionStatusConnected)
+	assert.Equal(t, "●", treeNodeIcon(a, testPath))
+
+	// Simulate disconnect result (success).
+	result := domain.Result[struct{}]{Data: struct{}{}}
+	a.applyDisconnectResult(testPath, result)
+
+	// After disconnect: icon is ○, activeConn cleared, status bar shows disconnect msg.
+	assert.Equal(t, "○", treeNodeIcon(a, testPath))
+	assert.False(t, a.connectedPaths[testPath])
+	assert.Nil(t, a.activeConn)
+	statusText := a.statusBar.widget.GetText(false)
+	assert.Contains(t, statusText, "Disconnected from "+testPath)
+	assert.True(t, log.hasEntry("info", "disconnected"))
+}
+
+func TestScenario_DisconnectError_TreeIconAndStatusBar(t *testing.T) {
+	log := &capturingLogger{}
+	mgr := &mockConnectionManager{}
+	a := NewApp(mgr, testConfig(), nil, log)
+
+	// Set up connected state.
+	a.connectedPaths[testPath] = true
+	a.tree.UpdateNodeStatus(testPath, ConnectionStatusConnected)
+
+	// Simulate disconnect error.
+	result := domain.Result[struct{}]{Error: errors.New("tunnel close timeout")}
+	a.applyDisconnectResult(testPath, result)
+
+	// After error: icon is ○ (force-disconnected), status bar shows red error.
+	assert.Equal(t, "○", treeNodeIcon(a, testPath))
+	assert.False(t, a.connectedPaths[testPath])
+	statusText := a.statusBar.widget.GetText(false)
+	assert.Contains(t, statusText, "tunnel close timeout")
+	assert.Contains(t, statusText, "[red]")
+	assert.True(t, log.hasEntry("error", "disconnect failed"))
+}
+
+func TestScenario_FullCycle_ConnectThenDisconnect(t *testing.T) {
+	log := &capturingLogger{}
+	mgr := &mockConnectionManager{}
+	a := NewApp(mgr, testConfig(), nil, log)
+
+	// Step 1: Connect.
+	a.connectingPaths[testPath] = true
+	a.tree.UpdateNodeStatus(testPath, ConnectionStatusConnecting)
+	a.applyConnectResult(testPath, domain.Result[domainconn.Info]{
+		Data: domainconn.Info{Path: testPath, Name: "dev-db", Type: "mysql", Env: "test"},
+	})
+	assert.Equal(t, "●", treeNodeIcon(a, testPath))
+	assert.True(t, a.connectedPaths[testPath])
+
+	// Step 2: Disconnect.
+	a.applyDisconnectResult(testPath, domain.Result[struct{}]{Data: struct{}{}})
+	assert.Equal(t, "○", treeNodeIcon(a, testPath))
+	assert.False(t, a.connectedPaths[testPath])
+	assert.Nil(t, a.activeConn)
+
+	// Step 3: Reconnect.
+	a.connectingPaths[testPath] = true
+	a.tree.UpdateNodeStatus(testPath, ConnectionStatusConnecting)
+	assert.Equal(t, "◌", treeNodeIcon(a, testPath))
+	a.applyConnectResult(testPath, domain.Result[domainconn.Info]{
+		Data: domainconn.Info{Path: testPath, Name: "dev-db", Type: "mysql", Env: "test"},
+	})
+	assert.Equal(t, "●", treeNodeIcon(a, testPath))
+	assert.True(t, a.connectedPaths[testPath])
+}
