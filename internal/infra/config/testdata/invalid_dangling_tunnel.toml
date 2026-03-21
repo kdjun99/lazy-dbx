@@ -1,0 +1,8 @@
+[groups.prod.write.main-db]
+type = "mysql"
+host = "db.prod.example.com"
+port = 3306
+user = "app"
+database = "appdb"
+ssh_tunnel = "nonexistent-tunnel"
+env = "production"

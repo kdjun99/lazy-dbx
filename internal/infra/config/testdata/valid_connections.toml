@@ -1,0 +1,38 @@
+[ssh_tunnels.bastion-prod]
+host = "bastion.prod.example.com"
+port = 22
+user = "ec2-user"
+key = "~/.ssh/id_ed25519"
+
+[groups.prod.write.main-db]
+type = "mysql"
+host = "db.prod.example.com"
+port = 3306
+user = "app"
+database = "appdb"
+ssh_tunnel = "bastion-prod"
+env = "production"
+password_cmd = "vault read -field=password secret/db/prod"
+max_open_conns = 10
+max_idle_conns = 3
+conn_max_lifetime = "10m"
+connect_timeout = "15s"
+
+[groups.prod.read.replica]
+type = "mysql"
+host = "replica.prod.example.com"
+port = 3306
+user = "readonly"
+database = "appdb"
+ssh_tunnel = "bastion-prod"
+env = "production"
+password_env = "DB_REPLICA_PASSWORD"
+
+[groups.staging.write.main-db]
+type = "postgresql"
+host = "db.staging.example.com"
+port = 5432
+user = "app"
+database = "appdb"
+env = "staging"
+password = "staging-password"
