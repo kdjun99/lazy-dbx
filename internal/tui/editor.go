@@ -59,15 +59,27 @@ func QueryAtPosition(text string, cursorRow, cursorCol int) string {
 	// Split by ';' and find which segment contains the offset.
 	pos := 0
 	segments := splitStatements(text)
+	lastNonEmpty := ""
 	for _, seg := range segments {
 		segEnd := pos + len(seg.raw)
+		if seg.text != "" {
+			lastNonEmpty = seg.text
+		}
 		if offset >= pos && offset <= segEnd {
-			return strings.TrimSpace(seg.text)
+			// If cursor lands on an empty segment (e.g. after trailing ';'),
+			// return the last non-empty statement.
+			if seg.text == "" {
+				return lastNonEmpty
+			}
+			return seg.text
 		}
 		pos = segEnd + 1 // +1 for the ';' delimiter
 	}
 
-	// Fallback: return entire text trimmed.
+	// Fallback: return last non-empty segment or entire text.
+	if lastNonEmpty != "" {
+		return lastNonEmpty
+	}
 	return strings.TrimSpace(text)
 }
 

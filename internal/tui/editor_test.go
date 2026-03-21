@@ -80,6 +80,19 @@ func TestQueryAtPosition_CursorAtEnd(t *testing.T) {
 	assert.Equal(t, "SELECT 2", QueryAtPosition(text, 1, 8))
 }
 
+func TestQueryAtPosition_CursorAfterTrailingSemicolon(t *testing.T) {
+	// "show tables;" — cursor after the ';' should still return "show tables"
+	text := "select * from test_tbl;\nshow tables;"
+	// Cursor at row 1, col 12 (after the ';' on "show tables;")
+	assert.Equal(t, "show tables", QueryAtPosition(text, 1, 12))
+}
+
+func TestQueryAtPosition_CursorAfterLastSemicolonNewline(t *testing.T) {
+	text := "SELECT 1;\n"
+	// Cursor on empty line after semicolon
+	assert.Equal(t, "SELECT 1", QueryAtPosition(text, 1, 0))
+}
+
 func TestQueryAtPosition_WhitespaceAroundStatements(t *testing.T) {
 	text := "  SELECT 1 ;  \n  SELECT 2  "
 	assert.Equal(t, "SELECT 1", QueryAtPosition(text, 0, 5))
