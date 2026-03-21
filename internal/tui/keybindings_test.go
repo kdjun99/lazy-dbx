@@ -19,9 +19,9 @@ func TestDispatchKeyAction(t *testing.T) {
 			expected: "quit",
 		},
 		{
-			name:     "CtrlC quits",
+			name:     "CtrlC cancels or quits",
 			event:    tcell.NewEventKey(tcell.KeyCtrlC, 0, tcell.ModNone),
-			expected: "quit",
+			expected: "cancel_or_quit",
 		},
 		{
 			name:     "Tab advances focus",

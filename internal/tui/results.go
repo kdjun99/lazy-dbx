@@ -131,10 +131,13 @@ func (rt *ResultsTable) render() {
 		}
 	}
 
-	// Update title.
+	// Update title with pagination info.
 	title := fmt.Sprintf("Results (%d rows, %dms)", rt.data.TotalRows, rt.data.Duration.Milliseconds())
 	if rt.data.Truncated {
 		title += " [truncated]"
+	}
+	if rt.pagination.TotalPages > 1 {
+		title += " " + rt.pagination.FormatStatus()
 	}
 	rt.table.SetTitle(title)
 }

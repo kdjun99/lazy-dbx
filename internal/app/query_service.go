@@ -128,7 +128,7 @@ func (s *QueryService) execQuery(ctx context.Context, db *sql.DB, sqlStr string)
 		}
 	}
 
-	resultRows, truncated, err := scanRows(rows, len(colNames), s.maxRows)
+	resultRows, truncated, err := scanRows(ctx, rows, len(colNames), s.maxRows)
 	if err != nil {
 		return nil, err
 	}
@@ -142,11 +142,15 @@ func (s *QueryService) execQuery(ctx context.Context, db *sql.DB, sqlStr string)
 }
 
 // scanRows reads all rows from a sql.Rows result, up to maxRows.
-func scanRows(rows *sql.Rows, numCols, maxRows int) ([][]query.Value, bool, error) {
+// It checks ctx for cancellation between rows to support query cancel.
+func scanRows(ctx context.Context, rows *sql.Rows, numCols, maxRows int) ([][]query.Value, bool, error) {
 	var resultRows [][]query.Value
 	truncated := false
 
 	for rows.Next() {
+		if err := ctx.Err(); err != nil {
+			return resultRows, false, err
+		}
 		if len(resultRows) >= maxRows {
 			truncated = true
 			break

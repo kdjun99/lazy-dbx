@@ -90,7 +90,7 @@ func NewApp(
 
 	RegisterKeybindings(a.tviewApp, a.focusManager, func() {
 		a.tviewApp.Stop()
-	}, a.handleExecute)
+	}, a.handleExecute, a.handleCancel)
 
 	log.Info(context.Background(), "App", "NewApp", "TUI initialized",
 		domainlogger.F("readonly", fmt.Sprintf("%v", a.readonly)))
@@ -225,16 +225,31 @@ func (a *App) handleExecute() {
 	a.statusBar.SetMessage("Executing query...", false)
 	ctx, cancel := context.WithCancel(context.Background())
 	a.cancelQuery = cancel
+
+	// Capture path before goroutine to avoid race with disconnect.
+	connPath := a.activeConn.Path
+
 	a.logger.Info(ctx, "App", "handleExecute", "executing",
-		domainlogger.F("path", a.activeConn.Path))
+		domainlogger.F("path", connPath))
 
 	go func() {
 		defer cancel()
-		result := a.executor.Execute(ctx, a.activeConn.Path, sql)
+		result := a.executor.Execute(ctx, connPath, sql)
 		a.tviewApp.QueueUpdateDraw(func() {
 			a.applyResult(result)
 		})
 	}()
+}
+
+// handleCancel cancels a running query. Returns true if a query was cancelled.
+func (a *App) handleCancel() bool {
+	if a.isExecuting && a.cancelQuery != nil {
+		a.cancelQuery()
+		a.statusBar.SetMessage("Query cancelled", false)
+		a.logger.Info(context.Background(), "App", "handleCancel", "query cancelled")
+		return true
+	}
+	return false
 }
 
 // applyResult updates UI state after a query execution completes.
