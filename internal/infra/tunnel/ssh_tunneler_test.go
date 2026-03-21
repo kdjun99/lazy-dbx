@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -267,6 +268,53 @@ func TestSSHTunneler_ContextCancellation(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestSSHTunneler_NoAgentSock(t *testing.T) {
+	t.Setenv("SSH_AUTH_SOCK", "")
+	os.Unsetenv("SSH_AUTH_SOCK") //nolint:errcheck
+
+	tunneler := infratunnel.NewSSHTunneler()
+	cfg := domaintunnel.Config{
+		SSHHost:  "127.0.0.1",
+		SSHPort:  22,
+		SSHUser:  "testuser",
+		UseAgent: true,
+	}
+
+	_, err := tunneler.Open(context.Background(), cfg, "127.0.0.1", 9999)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "SSH_AUTH_SOCK not set")
+}
+
+func TestSSHTunneler_NoKeyPath(t *testing.T) {
+	tunneler := infratunnel.NewSSHTunneler()
+	cfg := domaintunnel.Config{
+		SSHHost:  "127.0.0.1",
+		SSHPort:  22,
+		SSHUser:  "testuser",
+		KeyPath:  "",
+		UseAgent: false,
+	}
+
+	_, err := tunneler.Open(context.Background(), cfg, "127.0.0.1", 9999)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no key_path")
+}
+
+func TestSSHTunneler_KeyFileNotFound(t *testing.T) {
+	tunneler := infratunnel.NewSSHTunneler()
+	cfg := domaintunnel.Config{
+		SSHHost:  "127.0.0.1",
+		SSHPort:  22,
+		SSHUser:  "testuser",
+		KeyPath:  "/nonexistent/key",
+		UseAgent: false,
+	}
+
+	_, err := tunneler.Open(context.Background(), cfg, "127.0.0.1", 9999)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domaintunnel.ErrTunnelFailed)
+}
+
 // --- TunnelManager tests ---
 
 func TestTunnelManager_SharedTunnel_Refcount(t *testing.T) {
@@ -298,6 +346,40 @@ func TestTunnelManager_SharedTunnel_Refcount(t *testing.T) {
 
 	// Release again — refcount goes 1→0, tunnel closed.
 	require.NoError(t, mgr.Release("tunnel-a"))
+}
+
+func TestTunnelManager_ReleaseNonexistent(t *testing.T) {
+	mgr := infratunnel.NewTunnelManager()
+	err := mgr.Release("nonexistent")
+	assert.NoError(t, err)
+}
+
+func TestTunnelManager_ConcurrentAccess(t *testing.T) {
+	clientKey := generateRSAKey(t)
+	pub, err := ssh.NewPublicKey(&clientKey.PublicKey)
+	require.NoError(t, err)
+
+	sshAddr := startFakeSSHServer(t, pub)
+	host, portStr, _ := net.SplitHostPort(sshAddr)
+	port := mustAtoi(t, portStr)
+	keyPath := writePrivateKeyFile(t, clientKey)
+
+	mgr := infratunnel.NewTunnelManager()
+	cfg := domaintunnel.Config{
+		SSHHost: host, SSHPort: port, SSHUser: "testuser", KeyPath: keyPath,
+	}
+
+	const goroutines = 10
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			defer wg.Done()
+			_, _ = mgr.GetOrOpen(context.Background(), "concurrent-tunnel", cfg, "127.0.0.1", 9999)
+			_ = mgr.Release("concurrent-tunnel")
+		}()
+	}
+	wg.Wait()
 }
 
 func TestTunnelManager_CloseAll(t *testing.T) {

@@ -28,18 +28,24 @@ type Connector struct{}
 // Connect establishes a PostgreSQL connection using the provided entry and password.
 // If tunnelState is non-nil, the connection routes through the tunnel's local port.
 func (c *Connector) Connect(ctx context.Context, entry config.ConnectionEntry, password string, tunnelState *tunnel.State) (*sql.DB, error) {
+	host, port := entry.Host, entry.Port
+	if tunnelState != nil {
+		host = tunnelState.LocalHost
+		port = tunnelState.LocalPort
+	}
+
 	dsn := c.buildDSN(entry, password, tunnelState)
 
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("%w: postgres open: %w", connection.ErrConnectionFailed, err)
+		return nil, fmt.Errorf("%w: postgres open %s:%d/%s: %v", connection.ErrConnectionFailed, host, port, entry.Database, err)
 	}
 
 	c.applyPoolConfig(db, entry)
 
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("%w: postgres ping: %w", connection.ErrConnectionFailed, err)
+		return nil, fmt.Errorf("%w: postgres ping %s:%d/%s: %v", connection.ErrConnectionFailed, host, port, entry.Database, err)
 	}
 
 	return db, nil

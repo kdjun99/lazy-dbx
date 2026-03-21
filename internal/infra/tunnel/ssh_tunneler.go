@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"golang.org/x/crypto/ssh"
@@ -130,6 +131,17 @@ func forward(local net.Conn, client *ssh.Client, remoteHost string, remotePort i
 	<-done
 }
 
+func expandTilde(path string) string {
+	if len(path) == 0 || path[0] != '~' {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	return filepath.Join(home, path[1:])
+}
+
 func buildAuthMethods(config domaintunnel.Config) ([]ssh.AuthMethod, error) {
 	if config.UseAgent {
 		sock := os.Getenv("SSH_AUTH_SOCK")
@@ -148,7 +160,7 @@ func buildAuthMethods(config domaintunnel.Config) ([]ssh.AuthMethod, error) {
 		return nil, fmt.Errorf("%w: no key_path and use_agent=false", domaintunnel.ErrTunnelFailed)
 	}
 
-	keyData, err := os.ReadFile(config.KeyPath)
+	keyData, err := os.ReadFile(expandTilde(config.KeyPath))
 	if err != nil {
 		return nil, fmt.Errorf("%w: reading key file %s: %v", domaintunnel.ErrTunnelFailed, config.KeyPath, err)
 	}

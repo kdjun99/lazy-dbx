@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -103,4 +104,71 @@ func TestConnector_BuildDSN_PoolConfig(t *testing.T) {
 	assert.Equal(t, 10, entry.MaxOpenConns)
 	assert.Equal(t, 3, entry.MaxIdleConns)
 	assert.Equal(t, "10m", entry.ConnMaxLifetime)
+}
+
+func TestParseTimeoutSeconds(t *testing.T) {
+	tests := []struct {
+		name    string
+		timeout string
+		want    int
+	}{
+		{"empty uses default", "", 10},
+		{"30s returns 30", "30s", 30},
+		{"1m returns 60", "1m", 60},
+		{"invalid falls back", "abc", 10},
+		{"zero falls back", "0s", 10},
+		{"negative falls back", "-5s", 10},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseTimeoutSeconds(tt.timeout)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestApplyPoolConfig(t *testing.T) {
+	c := &Connector{}
+
+	t.Run("default values applied when zero", func(t *testing.T) {
+		db, err := sql.Open("postgres", "postgres://localhost:5432/test")
+		assert.NoError(t, err)
+		defer db.Close() //nolint:errcheck
+
+		entry := config.ConnectionEntry{}
+		c.applyPoolConfig(db, entry)
+
+		assert.Equal(t, defaultMaxOpenConns, db.Stats().MaxOpenConnections)
+	})
+
+	t.Run("custom values applied", func(t *testing.T) {
+		db, err := sql.Open("postgres", "postgres://localhost:5432/test")
+		assert.NoError(t, err)
+		defer db.Close() //nolint:errcheck
+
+		entry := config.ConnectionEntry{
+			MaxOpenConns:    10,
+			MaxIdleConns:    3,
+			ConnMaxLifetime: "10m",
+		}
+		c.applyPoolConfig(db, entry)
+
+		assert.Equal(t, 10, db.Stats().MaxOpenConnections)
+	})
+
+	t.Run("invalid lifetime does not panic", func(t *testing.T) {
+		db, err := sql.Open("postgres", "postgres://localhost:5432/test")
+		assert.NoError(t, err)
+		defer db.Close() //nolint:errcheck
+
+		entry := config.ConnectionEntry{
+			MaxOpenConns:    5,
+			MaxIdleConns:    2,
+			ConnMaxLifetime: "invalid",
+		}
+		assert.NotPanics(t, func() {
+			c.applyPoolConfig(db, entry)
+		})
+	})
 }

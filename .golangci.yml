@@ -124,6 +124,16 @@ linters-settings:
           - golang.org/x/crypto
           - github.com/sahilm/fuzzy
 
+      # Application layer: domain only, no infra/tui direct imports
+      app-layer:
+        files:
+          - "**/internal/app/**"
+        list-mode: strict
+        allow:
+          - $gostd
+          - github.com/kdjun99/lazy-dbx/internal/domain
+          - github.com/kdjun99/lazy-dbx/internal/app
+
 issues:
   exclude-rules:
     # Cobra command handlers have fixed signature (cmd, args)

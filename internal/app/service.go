@@ -83,7 +83,7 @@ func (s *ConnectionService) Connect(ctx context.Context, path string) domain.Res
 		tunnelEntry, ok := connCfg.SSHTunnels[entry.SSHTunnel]
 		if !ok {
 			return domain.Result[domainconn.Info]{
-				Error: fmt.Errorf("tunnel %q not found in config", entry.SSHTunnel),
+				Error: fmt.Errorf("connection %q references tunnel %q, but it is not defined in [ssh_tunnels]", path, entry.SSHTunnel),
 			}
 		}
 		tunnelState, err = s.cfg.TunnelManager.GetOrOpen(ctx, entry.SSHTunnel, domaintunnel.Config{
@@ -101,7 +101,7 @@ func (s *ConnectionService) Connect(ctx context.Context, path string) domain.Res
 	connector := s.connectorFor(entry.Type)
 	if connector == nil {
 		return domain.Result[domainconn.Info]{
-			Error: fmt.Errorf("%w: %s", domainconn.ErrUnsupportedDriver, entry.Type),
+			Error: fmt.Errorf("%w: %q (supported: mysql, postgresql)", domainconn.ErrUnsupportedDriver, entry.Type),
 		}
 	}
 
@@ -143,13 +143,19 @@ func (s *ConnectionService) Disconnect(ctx context.Context, path string) domain.
 	connCfg, err := s.loadConnections(ctx)
 	if err != nil {
 		// Best-effort: still close the pool entry
-		_ = s.cfg.Pool.Close(path)
+		if poolErr := s.cfg.Pool.Close(path); poolErr != nil {
+			s.cfg.Logger.Warn(ctx, "ConnectionService", "Disconnect", "pool close during error recovery",
+				domainlogger.F("path", path), domainlogger.F("error", poolErr.Error()))
+		}
 		return domain.Result[struct{}]{Error: err}
 	}
 
 	entry, err := connCfg.FindConnection(path)
 	if err != nil {
-		_ = s.cfg.Pool.Close(path)
+		if poolErr := s.cfg.Pool.Close(path); poolErr != nil {
+			s.cfg.Logger.Warn(ctx, "ConnectionService", "Disconnect", "pool close during error recovery",
+				domainlogger.F("path", path), domainlogger.F("error", poolErr.Error()))
+		}
 		return domain.Result[struct{}]{Error: fmt.Errorf("find connection: %w", err)}
 	}
 
