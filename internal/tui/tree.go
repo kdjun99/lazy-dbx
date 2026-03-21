@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -169,22 +170,33 @@ func (ct *ConnectionTree) UpdateNodeStatus(path string, status ConnectionStatus)
 	if !ok {
 		return
 	}
+
+	// Rebuild label: strip old icon (first rune) and any trailing status suffix.
 	text := tNode.GetText()
-	if len([]rune(text)) > 0 {
-		icon := StatusIcon(status)
-		runes := []rune(text)
-		runes[0] = []rune(icon)[0]
-		tNode.SetText(string(runes))
+	runes := []rune(text)
+	if len(runes) == 0 {
+		return
 	}
 
+	// Remove first rune (old icon) and trim trailing status suffixes.
+	body := string(runes[1:])
+	body = strings.TrimSuffix(body, " ✓")
+	body = strings.TrimSuffix(body, " …")
+
+	icon := StatusIcon(status)
+	suffix := ""
 	switch status {
 	case ConnectionStatusConnected:
 		tNode.SetColor(tcell.ColorGreen)
+		suffix = " ✓"
 	case ConnectionStatusConnecting:
 		tNode.SetColor(tcell.ColorYellow)
+		suffix = " …"
 	case ConnectionStatusDisconnected:
 		tNode.SetColor(EnvColor(ct.envMap[path]))
 	}
+
+	tNode.SetText(icon + body + suffix)
 }
 
 // SetEmptyMessage adds a placeholder child to the root node for empty configs.

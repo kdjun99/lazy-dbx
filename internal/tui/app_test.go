@@ -335,6 +335,14 @@ func treeNodeIcon(a *App, path string) string {
 	return string(runes[0])
 }
 
+func treeNodeText(a *App, path string) string {
+	tNode, ok := a.tree.nodeMap[path]
+	if !ok {
+		return ""
+	}
+	return tNode.GetText()
+}
+
 func TestScenario_ConnectSuccess_TreeIconAndStatusBar(t *testing.T) {
 	log := &capturingLogger{}
 	mgr := &mockConnectionManager{}
@@ -348,8 +356,9 @@ func TestScenario_ConnectSuccess_TreeIconAndStatusBar(t *testing.T) {
 	a.statusBar.SetMessage("Connecting to "+testPath+"...", false)
 	a.tree.UpdateNodeStatus(testPath, ConnectionStatusConnecting)
 
-	// During connect: icon is ◌ (connecting), status bar shows connecting message.
+	// During connect: icon is ◌ (connecting) with … suffix, status bar shows connecting message.
 	assert.Equal(t, "◌", treeNodeIcon(a, testPath))
+	assert.Contains(t, treeNodeText(a, testPath), "…")
 	assert.Contains(t, a.statusBar.widget.GetText(false), "Connecting to "+testPath)
 
 	// Simulate connect result (success).
@@ -358,8 +367,9 @@ func TestScenario_ConnectSuccess_TreeIconAndStatusBar(t *testing.T) {
 	}
 	a.applyConnectResult(testPath, result)
 
-	// After connect: icon is ● (connected), status bar shows connection info.
+	// After connect: icon is ● (connected) with ✓ suffix, status bar shows connection info.
 	assert.Equal(t, "●", treeNodeIcon(a, testPath))
+	assert.Contains(t, treeNodeText(a, testPath), "✓")
 	assert.True(t, a.connectedPaths[testPath])
 	require.NotNil(t, a.activeConn)
 	assert.Equal(t, testPath, a.activeConn.Path)
