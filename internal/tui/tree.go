@@ -110,28 +110,27 @@ func NewConnectionTree(data []TreeNode, onSelect func(path string)) *ConnectionT
 		root.AddChild(tNode)
 	}
 
-	ct.view.SetSelectedFunc(func(tNode *tview.TreeNode) {
-		ref := tNode.GetReference()
-		if ref == nil {
-			// non-leaf: toggle expand/collapse
-			tNode.SetExpanded(!tNode.IsExpanded())
-			return
-		}
-		path, ok := ref.(string)
-		if !ok {
-			return
-		}
-		if onSelect != nil {
-			onSelect(path)
-		}
-	})
-
 	ct.view.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Rune() {
 		case 'j':
 			return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
 		case 'k':
 			return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
+		}
+		if event.Key() == tcell.KeyEnter {
+			tNode := ct.view.GetCurrentNode()
+			if tNode == nil {
+				return nil
+			}
+			ref := tNode.GetReference()
+			if ref == nil {
+				tNode.SetExpanded(!tNode.IsExpanded())
+				return nil
+			}
+			if path, ok := ref.(string); ok && onSelect != nil {
+				onSelect(path)
+			}
+			return nil
 		}
 		return event
 	})
