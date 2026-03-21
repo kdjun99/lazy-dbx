@@ -92,8 +92,10 @@ type AuditSettings struct {
 
 // UISettings holds UI-related settings.
 type UISettings struct {
-	MouseEnabled bool
-	RefreshRate  string
+	MouseEnabled   bool
+	RefreshRate    string
+	ResultPageSize int
+	MaxResultRows  int
 }
 
 // LoggingSettings holds logging settings.

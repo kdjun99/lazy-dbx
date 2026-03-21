@@ -78,8 +78,10 @@ type rawAuditSettings struct {
 }
 
 type rawUISettings struct {
-	MouseEnabled bool   `toml:"mouse_enabled"`
-	RefreshRate  string `toml:"refresh_rate"`
+	MouseEnabled   bool   `toml:"mouse_enabled"`
+	RefreshRate    string `toml:"refresh_rate"`
+	ResultPageSize int    `toml:"result_page_size"`
+	MaxResultRows  int    `toml:"max_result_rows"`
 }
 
 type rawLoggingSettings struct {
@@ -271,8 +273,10 @@ func convertSettings(raw *rawSettings) *domainconfig.SettingsConfig {
 			LogPath: raw.Audit.LogPath,
 		},
 		UI: domainconfig.UISettings{
-			MouseEnabled: raw.UI.MouseEnabled,
-			RefreshRate:  raw.UI.RefreshRate,
+			MouseEnabled:   raw.UI.MouseEnabled,
+			RefreshRate:    raw.UI.RefreshRate,
+			ResultPageSize: raw.UI.ResultPageSize,
+			MaxResultRows:  raw.UI.MaxResultRows,
 		},
 		Logging: domainconfig.LoggingSettings{
 			LogPath: raw.Logging.LogPath,

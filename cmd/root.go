@@ -76,7 +76,13 @@ func runTUI(_ *cobra.Command) error {
 
 	service := buildService(dir, log)
 
-	tuiApp := tui.NewApp(service, connResult.Data, settingsResult.Data, log)
+	maxRows := 10000
+	if settingsResult.Data != nil && settingsResult.Data.UI.MaxResultRows > 0 {
+		maxRows = settingsResult.Data.UI.MaxResultRows
+	}
+	querySvc := app.NewQueryService(service.GetPool(), log, maxRows)
+
+	tuiApp := tui.NewApp(service, querySvc, connResult.Data, settingsResult.Data, log)
 	return tuiApp.Run()
 }
 
