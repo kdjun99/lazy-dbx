@@ -6,6 +6,7 @@ import (
 
 	"github.com/rivo/tview"
 
+	"github.com/kdjun99/lazy-dbx/internal/domain"
 	domainconfig "github.com/kdjun99/lazy-dbx/internal/domain/config"
 	domainconn "github.com/kdjun99/lazy-dbx/internal/domain/connection"
 	domainlogger "github.com/kdjun99/lazy-dbx/internal/domain/logger"
@@ -54,6 +55,10 @@ func NewApp(
 	}
 
 	a.tree = NewConnectionTree(treeData, a.handleSelect)
+
+	if len(treeData) == 0 {
+		a.tree.SetEmptyMessage("No connections configured")
+	}
 
 	a.statusBar = NewStatusBar()
 	a.statusBar.SetApp(a.tviewApp)
@@ -108,36 +113,64 @@ func (a *App) handleSelect(path string) {
 	// Connect flow.
 	a.connectingPaths[path] = true
 	a.statusBar.SetMessage("Connecting to "+path+"...", false)
-	a.tree.UpdateNodeStatus(path, false)
+	a.tree.UpdateNodeStatus(path, ConnectionStatusConnecting)
+
+	a.logger.Info(ctx, "App", "handleSelect", "connecting",
+		domainlogger.F("path", path))
 
 	go func() {
 		result := a.manager.Connect(ctx, path)
 		a.tviewApp.QueueUpdateDraw(func() {
-			delete(a.connectingPaths, path)
-			if result.Error != nil {
-				a.tree.UpdateNodeStatus(path, false)
-				a.statusBar.SetMessage(result.Error.Error(), true)
-				a.logger.Error(ctx, "App", "handleSelect", "connect failed",
-					domainlogger.F("path", path),
-					domainlogger.F("error", result.Error.Error()))
-				return
-			}
-			a.connectedPaths[path] = true
-			a.tree.UpdateNodeStatus(path, true)
-			info := result.Data
-			a.activeConn = &info
-			a.statusBar.SetConnectionInfo(FormatConnectionInfo(info.Name, info.Type, info.Env))
-			a.logger.Info(ctx, "App", "handleSelect", "connected",
-				domainlogger.F("path", path))
+			a.applyConnectResult(path, result)
 		})
 	}()
 }
 
-// handleDisconnect disconnects an active connection.
+// applyConnectResult updates UI state after a connect attempt completes.
+// Extracted from the goroutine for testability.
+func (a *App) applyConnectResult(path string, result domain.Result[domainconn.Info]) {
+	ctx := context.Background()
+	delete(a.connectingPaths, path)
+
+	if result.Error != nil {
+		a.tree.UpdateNodeStatus(path, ConnectionStatusDisconnected)
+		a.statusBar.SetMessage(result.Error.Error(), true)
+		a.logger.Error(ctx, "App", "handleSelect", "connect failed",
+			domainlogger.F("path", path),
+			domainlogger.F("error", result.Error.Error()))
+		return
+	}
+
+	a.connectedPaths[path] = true
+	a.tree.UpdateNodeStatus(path, ConnectionStatusConnected)
+	info := result.Data
+	a.activeConn = &info
+	a.statusBar.SetConnectionInfo(FormatConnectionInfo(info.Name, info.Type, info.Env))
+	a.logger.Info(ctx, "App", "handleSelect", "connected",
+		domainlogger.F("path", path))
+}
+
+// handleDisconnect disconnects an active connection asynchronously.
 func (a *App) handleDisconnect(ctx context.Context, path string) {
-	result := a.manager.Disconnect(ctx, path)
+	a.statusBar.SetMessage("Disconnecting from "+path+"...", false)
+
+	a.logger.Info(ctx, "App", "handleDisconnect", "disconnecting",
+		domainlogger.F("path", path))
+
+	go func() {
+		result := a.manager.Disconnect(ctx, path)
+		a.tviewApp.QueueUpdateDraw(func() {
+			a.applyDisconnectResult(path, result)
+		})
+	}()
+}
+
+// applyDisconnectResult updates UI state after a disconnect attempt completes.
+// Extracted from the goroutine for testability.
+func (a *App) applyDisconnectResult(path string, result domain.Result[struct{}]) {
+	ctx := context.Background()
 	delete(a.connectedPaths, path)
-	a.tree.UpdateNodeStatus(path, false)
+	a.tree.UpdateNodeStatus(path, ConnectionStatusDisconnected)
 
 	if a.activeConn != nil && a.activeConn.Path == path {
 		a.activeConn = nil

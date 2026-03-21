@@ -30,19 +30,17 @@ func TestEnvColor(t *testing.T) {
 
 func TestStatusIcon(t *testing.T) {
 	tests := []struct {
-		name       string
-		connected  bool
-		connecting bool
-		want       string
+		name   string
+		status ConnectionStatus
+		want   string
 	}{
-		{"connected", true, false, "●"},
-		{"connecting", false, true, "◌"},
-		{"disconnected", false, false, "○"},
-		{"connected takes precedence over connecting", true, true, "●"},
+		{"connected", ConnectionStatusConnected, "●"},
+		{"connecting", ConnectionStatusConnecting, "◌"},
+		{"disconnected", ConnectionStatusDisconnected, "○"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, StatusIcon(tt.connected, tt.connecting))
+			assert.Equal(t, tt.want, StatusIcon(tt.status))
 		})
 	}
 }

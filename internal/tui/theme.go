@@ -22,16 +22,26 @@ func EnvColor(env config.Environment) tcell.Color {
 	}
 }
 
+// ConnectionStatus represents the state of a database connection.
+type ConnectionStatus int
+
+const (
+	ConnectionStatusDisconnected ConnectionStatus = iota
+	ConnectionStatusConnecting
+	ConnectionStatusConnected
+)
+
 // StatusIcon returns an icon string representing connection status.
 // connected="●", connecting="◌", disconnected="○".
-func StatusIcon(connected bool, connecting bool) string {
-	if connected {
+func StatusIcon(status ConnectionStatus) string {
+	switch status {
+	case ConnectionStatusConnected:
 		return "●"
-	}
-	if connecting {
+	case ConnectionStatusConnecting:
 		return "◌"
+	default:
+		return "○"
 	}
-	return "○"
 }
 
 // ModeLabel returns the mode label string for a connection.

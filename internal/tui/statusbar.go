@@ -14,10 +14,7 @@ func FormatConnectionInfo(name, dbType, env string) string {
 
 // FormatMode returns the mode indicator string.
 func FormatMode(readonly bool) string {
-	if readonly {
-		return "[RO]"
-	}
-	return "[RW]"
+	return ModeLabel(readonly)
 }
 
 // StatusBar is the bottom status bar component.
@@ -27,6 +24,7 @@ type StatusBar struct {
 	keybindings    string
 	connectionInfo string
 	mode           string
+	clearTimer     *time.Timer
 }
 
 // NewStatusBar creates a new StatusBar.
@@ -47,13 +45,18 @@ func (s *StatusBar) SetApp(app *tview.Application) {
 // SetMessage displays a message in the status bar.
 // Errors are shown in red. Message auto-clears after 5 seconds.
 func (s *StatusBar) SetMessage(msg string, isError bool) {
+	// Cancel any pending clear timer.
+	if s.clearTimer != nil {
+		s.clearTimer.Stop()
+	}
+
 	if isError {
 		s.widget.SetText(fmt.Sprintf("[red]%s[-]", msg))
 	} else {
 		s.widget.SetText(msg)
 	}
 
-	time.AfterFunc(5*time.Second, func() {
+	s.clearTimer = time.AfterFunc(5*time.Second, func() {
 		if s.app != nil {
 			s.app.QueueUpdateDraw(func() {
 				s.render()
@@ -95,8 +98,25 @@ func (s *StatusBar) Widget() *tview.TextView {
 	return s.widget
 }
 
-// render composes all sections into one line.
+// render composes non-empty sections into one line separated by " | ".
 func (s *StatusBar) render() {
-	text := fmt.Sprintf("%s | %s | %s", s.keybindings, s.connectionInfo, s.mode)
+	parts := make([]string, 0, 3)
+	if s.keybindings != "" {
+		parts = append(parts, s.keybindings)
+	}
+	if s.connectionInfo != "" {
+		parts = append(parts, s.connectionInfo)
+	}
+	if s.mode != "" {
+		parts = append(parts, s.mode)
+	}
+
+	text := ""
+	for i, p := range parts {
+		if i > 0 {
+			text += " | "
+		}
+		text += p
+	}
 	s.widget.SetText(text)
 }

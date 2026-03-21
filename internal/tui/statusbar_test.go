@@ -51,24 +51,19 @@ func TestFormatMode(t *testing.T) {
 		readonly bool
 		expected string
 	}{
-		{
-			name:     "readonly mode",
-			readonly: true,
-			expected: "[RO]",
-		},
-		{
-			name:     "readwrite mode",
-			readonly: false,
-			expected: "[RW]",
-		},
+		{"readonly mode", true, "[RO]"},
+		{"readwrite mode", false, "[RW]"},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := FormatMode(tt.readonly)
-			assert.Equal(t, tt.expected, result)
+			assert.Equal(t, tt.expected, FormatMode(tt.readonly))
 		})
 	}
+}
+
+func TestFormatMode_ConsistentWithModeLabel(t *testing.T) {
+	assert.Equal(t, ModeLabel(true), FormatMode(true))
+	assert.Equal(t, ModeLabel(false), FormatMode(false))
 }
 
 func TestNewStatusBar(t *testing.T) {
@@ -77,36 +72,69 @@ func TestNewStatusBar(t *testing.T) {
 	assert.NotNil(t, sb.Widget())
 }
 
-func TestStatusBar_SetConnectionInfo(t *testing.T) {
+func TestStatusBar_SetConnectionInfo_RendersContent(t *testing.T) {
 	sb := NewStatusBar()
-	sb.SetConnectionInfo("main-db (mysql) [production]")
-	// Just verify it doesn't panic
+	sb.SetConnectionInfo("main-db (mysql)")
+	text := sb.widget.GetText(false)
+	assert.Contains(t, text, "main-db (mysql)")
 }
 
-func TestStatusBar_SetMode(t *testing.T) {
+func TestStatusBar_SetMode_RendersContent(t *testing.T) {
 	sb := NewStatusBar()
 	sb.SetMode(true)
+	assert.Equal(t, "[RO]", sb.mode)
+
 	sb.SetMode(false)
-	// Just verify it doesn't panic
+	assert.Equal(t, "[RW]", sb.mode)
 }
 
-func TestStatusBar_SetKeybindings(t *testing.T) {
+func TestStatusBar_SetKeybindings_RendersContent(t *testing.T) {
 	sb := NewStatusBar()
-	sb.SetKeybindings("j/k Navigate | Tab Switch | Ctrl+Q Quit")
-	// Just verify it doesn't panic
+	sb.SetKeybindings("Ctrl+Q:Quit  Tab:Focus")
+	text := sb.widget.GetText(false)
+	assert.Contains(t, text, "Ctrl+Q:Quit")
 }
 
-func TestStatusBar_Clear(t *testing.T) {
+func TestStatusBar_Clear_ClearsAllSections(t *testing.T) {
 	sb := NewStatusBar()
 	sb.SetConnectionInfo("test")
 	sb.SetMode(true)
+	sb.SetKeybindings("keys")
 	sb.Clear()
-	// Just verify it doesn't panic
+	assert.Empty(t, sb.keybindings)
+	assert.Empty(t, sb.connectionInfo)
+	assert.Empty(t, sb.mode)
 }
 
-func TestStatusBar_SetMessage(t *testing.T) {
+func TestStatusBar_Render_ComposesNonEmptySections(t *testing.T) {
+	sb := NewStatusBar()
+	sb.SetKeybindings("keys")
+	sb.SetConnectionInfo("conn")
+	sb.SetMode(true)
+	text := sb.widget.GetText(false)
+	assert.Equal(t, "keys | conn | [RO]", text)
+}
+
+func TestStatusBar_Render_SkipsEmptySections(t *testing.T) {
+	sb := NewStatusBar()
+	sb.SetMode(true)
+	assert.Equal(t, "[RO]", sb.mode)
+	text := sb.widget.GetText(false)
+	assert.Equal(t, "[RO]", text)
+}
+
+func TestStatusBar_SetMessage_NormalText(t *testing.T) {
 	sb := NewStatusBar()
 	sb.SetMessage("Operation successful", false)
-	sb.SetMessage("Error occurred", true)
-	// Just verify it doesn't panic (no real app for QueueUpdateDraw)
+	text := sb.widget.GetText(false)
+	assert.Equal(t, "Operation successful", text)
+}
+
+func TestStatusBar_SetMessage_ErrorShowsRed(t *testing.T) {
+	sb := NewStatusBar()
+	sb.SetMessage("connection refused", true)
+	// Raw text includes tview color tags.
+	rawText := sb.widget.GetText(false)
+	assert.Contains(t, rawText, "[red]")
+	assert.Contains(t, rawText, "connection refused")
 }

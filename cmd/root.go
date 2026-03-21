@@ -44,39 +44,17 @@ func Execute() {
 	}
 }
 
-func initService(cmd *cobra.Command, args []string) error {
-	dir, err := resolveConfigDir(configDir)
-	if err != nil {
-		return fmt.Errorf("resolving config dir: %w", err)
+func initService(_ *cobra.Command, _ []string) error {
+	dir, log := initLogger(configDir)
+	if dir == "" {
+		return fmt.Errorf("resolving config dir")
 	}
-
-	logPath := filepath.Join(dir, "debug.log")
-	var log domainlogger.Logger
-	jsonLog, logErr := infralogger.New(logPath)
-	if logErr != nil {
-		log = infralogger.NewNopLogger()
-	} else {
-		log = jsonLog
-	}
-
 	svc = buildService(dir, log)
 	return nil
 }
 
 func runTUI(_ *cobra.Command) error {
-	dir, err := resolveConfigDir(configDir)
-	if err != nil {
-		return fmt.Errorf("resolving config dir: %w", err)
-	}
-
-	logPath := filepath.Join(dir, "debug.log")
-	var log domainlogger.Logger
-	jsonLog, logErr := infralogger.New(logPath)
-	if logErr != nil {
-		log = infralogger.NewNopLogger()
-	} else {
-		log = jsonLog
-	}
+	dir, log := initLogger(configDir)
 
 	loader := infraconfig.NewTOMLLoader()
 
@@ -84,16 +62,36 @@ func runTUI(_ *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("loading connections config: %w", err)
 	}
+	if connResult.Error != nil {
+		return fmt.Errorf("loading connections config: %w", connResult.Error)
+	}
 
 	settingsResult, err := loader.LoadSettings(filepath.Join(dir, "settings.toml"))
 	if err != nil {
 		return fmt.Errorf("loading settings config: %w", err)
+	}
+	if settingsResult.Error != nil {
+		return fmt.Errorf("loading settings config: %w", settingsResult.Error)
 	}
 
 	service := buildService(dir, log)
 
 	tuiApp := tui.NewApp(service, connResult.Data, settingsResult.Data, log)
 	return tuiApp.Run()
+}
+
+func initLogger(cfgDir string) (string, domainlogger.Logger) {
+	dir, err := resolveConfigDir(cfgDir)
+	if err != nil {
+		return "", infralogger.NewNopLogger()
+	}
+
+	logPath := filepath.Join(dir, "debug.log")
+	jsonLog, logErr := infralogger.New(logPath)
+	if logErr != nil {
+		return dir, infralogger.NewNopLogger()
+	}
+	return dir, jsonLog
 }
 
 func init() {

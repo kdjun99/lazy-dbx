@@ -15,6 +15,9 @@ import (
 	domaintunnel "github.com/kdjun99/lazy-dbx/internal/domain/tunnel"
 )
 
+// Compile-time check: ConnectionService must satisfy connection.Manager.
+var _ domainconn.Manager = (*ConnectionService)(nil)
+
 // ValidationReport summarises the result of a config validation run.
 type ValidationReport struct {
 	Valid     bool

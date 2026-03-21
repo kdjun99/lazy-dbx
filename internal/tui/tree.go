@@ -60,8 +60,11 @@ func BuildTreeData(cfg *config.ConnectionsConfig, readonly bool, connectedPaths 
 			for _, connName := range connNames {
 				entry := subgroup.Connections[connName]
 				path := groupName + "." + subgroupName + "." + connName
-				connected := connectedPaths[path]
-				icon := StatusIcon(connected, false)
+				connStatus := ConnectionStatusDisconnected
+				if connectedPaths[path] {
+					connStatus = ConnectionStatusConnected
+				}
+				icon := StatusIcon(connStatus)
 				label := fmt.Sprintf("%s %s [%s] %s", icon, entry.Name, string(entry.Env), ModeLabel(readonly))
 				leafNode := TreeNode{
 					Label:  label,
@@ -158,19 +161,27 @@ func (ct *ConnectionTree) buildTviewNode(data TreeNode) *tview.TreeNode {
 }
 
 // UpdateNodeStatus updates the icon prefix of a leaf node to reflect connection status.
-func (ct *ConnectionTree) UpdateNodeStatus(path string, connected bool) {
+func (ct *ConnectionTree) UpdateNodeStatus(path string, status ConnectionStatus) {
 	tNode, ok := ct.nodeMap[path]
 	if !ok {
 		return
 	}
 	text := tNode.GetText()
 	if len([]rune(text)) > 0 {
-		icon := StatusIcon(connected, false)
-		// Replace the first rune (icon) with new icon
+		icon := StatusIcon(status)
 		runes := []rune(text)
 		runes[0] = []rune(icon)[0]
 		tNode.SetText(string(runes))
 	}
+}
+
+// SetEmptyMessage adds a placeholder child to the root node for empty configs.
+func (ct *ConnectionTree) SetEmptyMessage(msg string) {
+	root := ct.view.GetRoot()
+	placeholder := tview.NewTreeNode(msg).
+		SetSelectable(false).
+		SetColor(tcell.ColorGray)
+	root.AddChild(placeholder)
 }
 
 // Widget returns the underlying tview.TreeView for embedding in layouts.
