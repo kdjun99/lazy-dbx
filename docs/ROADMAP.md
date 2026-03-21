@@ -7,7 +7,7 @@
 | Wave | Theme | Features | Status |
 |------|-------|----------|--------|
 | [Wave 1](waves/wave-1-foundation.md) | Foundation — Config + DB Connection | 15 | **Done** |
-| [Wave 2](waves/wave-2-tui-shell.md) | TUI Shell — Layout & Navigation | 7 | Not Started |
+| [Wave 2](waves/wave-2-tui-shell.md) | TUI Shell — Layout & Navigation | 7 | **Done** |
 | [Wave 3](waves/wave-3-query-loop.md) | Core Loop — Query & Results | 7 | Not Started |
 | [Wave 4](waves/wave-4-catalog.md) | Schema Catalog — Browse & Preview | 5 | Not Started |
 | [Wave 5](waves/wave-5-safety.md) | Safety — Production Protection | 13 | Not Started |
