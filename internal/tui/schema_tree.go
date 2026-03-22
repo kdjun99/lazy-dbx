@@ -76,15 +76,29 @@ func (st *SchemaTree) handleEnter() {
 		return
 	}
 	switch ref.NodeType {
-	case "table":
-		if st.onTableSelect != nil {
-			st.onTableSelect(ref.Database, ref.Table)
-		}
 	case "database":
 		if !st.loadedNodes[ref.Database] && st.onExpand != nil {
 			st.onExpand("database", ref.Database, "")
+			node.SetExpanded(true)
 		} else {
 			node.SetExpanded(!node.IsExpanded())
+		}
+	case "table":
+		tableKey := ref.Database + "." + ref.Table
+		if !st.loadedNodes[tableKey] && st.onExpand != nil {
+			// First Enter: load columns via lazy fetch.
+			st.onExpand("table", ref.Database, ref.Table)
+			st.loadedNodes[tableKey] = true
+			node.SetExpanded(true)
+		} else if node.IsExpanded() {
+			// Columns already visible: collapse.
+			node.SetExpanded(false)
+		} else if len(node.GetChildren()) > 0 {
+			// Columns loaded but collapsed: expand.
+			node.SetExpanded(true)
+		} else if st.onTableSelect != nil {
+			// No children (empty table?): trigger preview.
+			st.onTableSelect(ref.Database, ref.Table)
 		}
 	}
 }
