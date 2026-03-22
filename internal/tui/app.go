@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/rivo/tview"
 
@@ -193,6 +194,7 @@ func (a *App) applyConnectResult(path string, result domain.Result[domainconn.In
 					a.logger.Error(ctx, "App", "applyConnectResult", "schema load failed",
 						domainlogger.F("path", path),
 						domainlogger.F("error", dbResult.Error.Error()))
+					a.statusBar.SetMessage("Schema load failed: "+dbResult.Error.Error(), true)
 					return
 				}
 				a.schemaTree.LoadDatabases(dbResult.Data)
@@ -296,12 +298,14 @@ func (a *App) handleTablePreview(database, table string) {
 		return
 	}
 
-	// Build dialect-appropriate preview SQL.
+	// Build dialect-appropriate preview SQL with sanitized identifiers.
 	var sql string
 	if a.activeConn.Type == "postgresql" {
-		sql = fmt.Sprintf("SELECT * FROM %s.%s LIMIT %d", database, table, a.autoLimit)
+		sql = fmt.Sprintf("SELECT * FROM %s.%s LIMIT %d",
+			quoteIdentPG(database), quoteIdentPG(table), a.autoLimit)
 	} else {
-		sql = fmt.Sprintf("SELECT * FROM `%s`.`%s` LIMIT %d", database, table, a.autoLimit)
+		sql = fmt.Sprintf("SELECT * FROM %s.%s LIMIT %d",
+			quoteIdentMySQL(database), quoteIdentMySQL(table), a.autoLimit)
 	}
 
 	a.isExecuting = true
@@ -429,4 +433,14 @@ func (a *App) applyResult(result domain.Result[query.Result]) {
 	a.logger.Info(ctx, "App", "handleExecute", "completed",
 		domainlogger.F("type", data.Type),
 		domainlogger.F("duration_ms", data.Duration.Milliseconds()))
+}
+
+// quoteIdentMySQL escapes a MySQL identifier with backticks.
+func quoteIdentMySQL(name string) string {
+	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
+}
+
+// quoteIdentPG escapes a PostgreSQL identifier with double quotes.
+func quoteIdentPG(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }

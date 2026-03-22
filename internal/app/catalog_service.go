@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/kdjun99/lazy-dbx/internal/domain"
 	"github.com/kdjun99/lazy-dbx/internal/domain/catalog"
@@ -26,6 +27,7 @@ type catalogCache struct {
 type CatalogService struct {
 	pool           domainconn.Pool
 	logger         domainlogger.Logger
+	mu             sync.RWMutex
 	cache          map[string]*catalogCache
 	driverTypeFunc func(path string) string
 }
@@ -43,14 +45,19 @@ func NewCatalogService(pool domainconn.Pool, log domainlogger.Logger, driverType
 
 // ClearCache removes cached schema data for the given connection path.
 func (s *CatalogService) ClearCache(path string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	delete(s.cache, path)
 }
 
 // ListDatabases lists all non-system databases for the connection at path.
 func (s *CatalogService) ListDatabases(ctx context.Context, path string) domain.Result[[]catalog.Database] {
+	s.mu.RLock()
 	if c, ok := s.cache[path]; ok && c.databases != nil {
+		s.mu.RUnlock()
 		return domain.Result[[]catalog.Database]{Data: c.databases}
 	}
+	s.mu.RUnlock()
 
 	db, err := s.getDB(path)
 	if err != nil {
@@ -90,11 +97,14 @@ func (s *CatalogService) ListDatabases(ctx context.Context, path string) domain.
 
 // ListTables lists all non-system tables/views for the given database.
 func (s *CatalogService) ListTables(ctx context.Context, path string, database string) domain.Result[[]catalog.Table] {
+	s.mu.RLock()
 	if c, ok := s.cache[path]; ok {
 		if tables, ok := c.tables[database]; ok {
+			s.mu.RUnlock()
 			return domain.Result[[]catalog.Table]{Data: tables}
 		}
 	}
+	s.mu.RUnlock()
 
 	db, err := s.getDB(path)
 	if err != nil {
@@ -136,11 +146,14 @@ func (s *CatalogService) ListTables(ctx context.Context, path string, database s
 // ListColumns lists all columns for the given table in the given database.
 func (s *CatalogService) ListColumns(ctx context.Context, path string, database string, table string) domain.Result[[]catalog.Column] {
 	cacheKey := database + "." + table
+	s.mu.RLock()
 	if c, ok := s.cache[path]; ok {
 		if cols, ok := c.columns[cacheKey]; ok {
+			s.mu.RUnlock()
 			return domain.Result[[]catalog.Column]{Data: cols}
 		}
 	}
+	s.mu.RUnlock()
 
 	db, err := s.getDB(path)
 	if err != nil {
@@ -199,6 +212,8 @@ func (s *CatalogService) getDB(path string) (*sql.DB, error) {
 }
 
 func (s *CatalogService) ensureCache(path string) *catalogCache {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if _, ok := s.cache[path]; !ok {
 		s.cache[path] = &catalogCache{}
 	}
