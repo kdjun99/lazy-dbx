@@ -132,7 +132,7 @@ func testLogger() domainlogger.Logger {
 
 func TestNewApp_NilConfig(t *testing.T) {
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), nil, nil, testLogger())
+	a := NewApp(mgr, nopExecutor(), nil, nil, testLogger(), nil)
 	require.NotNil(t, a)
 	assert.NotNil(t, a.tviewApp)
 	assert.NotNil(t, a.tree)
@@ -145,7 +145,7 @@ func TestNewApp_EmptyConfig(t *testing.T) {
 	cfg := &domainconfig.ConnectionsConfig{
 		Groups: map[string]*domainconfig.Group{},
 	}
-	a := NewApp(mgr, nopExecutor(), cfg, nil, testLogger())
+	a := NewApp(mgr, nopExecutor(), cfg, nil, testLogger(), nil)
 	require.NotNil(t, a)
 	assert.False(t, a.readonly)
 }
@@ -155,7 +155,7 @@ func TestNewApp_ReadonlyFromSettings(t *testing.T) {
 	settings := &domainconfig.SettingsConfig{
 		Safety: domainconfig.SafetySettings{ReadonlyByDefault: true},
 	}
-	a := NewApp(mgr, nopExecutor(), nil, settings, testLogger())
+	a := NewApp(mgr, nopExecutor(), nil, settings, testLogger(), nil)
 	require.NotNil(t, a)
 	assert.True(t, a.readonly)
 }
@@ -175,7 +175,7 @@ func TestNewApp_WithConfig(t *testing.T) {
 			},
 		},
 	}
-	a := NewApp(mgr, nopExecutor(), cfg, nil, testLogger())
+	a := NewApp(mgr, nopExecutor(), cfg, nil, testLogger(), nil)
 	require.NotNil(t, a)
 	// Tree should have nodes for the connection.
 	assert.NotNil(t, a.tree.nodeMap["dev.local.mydb"])
@@ -185,7 +185,7 @@ func TestNewApp_WithConfig(t *testing.T) {
 
 func TestHandleSelect_PreventDoubleConnect(t *testing.T) {
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), nil, nil, testLogger())
+	a := NewApp(mgr, nopExecutor(), nil, nil, testLogger(), nil)
 
 	a.connectingPaths["g.s.c"] = true
 	a.handleSelect("g.s.c")
@@ -197,7 +197,7 @@ func TestHandleSelect_ConnectedPathTriggersDisconnect(t *testing.T) {
 	mgr := &mockConnectionManager{
 		disconnectResult: domain.Result[struct{}]{Data: struct{}{}},
 	}
-	a := NewApp(mgr, nopExecutor(), nil, nil, testLogger())
+	a := NewApp(mgr, nopExecutor(), nil, nil, testLogger(), nil)
 	a.connectedPaths["g.s.c"] = true
 	a.activeConn = &domainconn.Info{Path: "g.s.c"}
 
@@ -211,7 +211,7 @@ func TestHandleSelect_ConnectedPathTriggersDisconnect(t *testing.T) {
 func TestApplyConnectResult_Success(t *testing.T) {
 	log := &capturingLogger{}
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), nil, nil, log)
+	a := NewApp(mgr, nopExecutor(), nil, nil, log, nil)
 
 	path := "g.s.c"
 	a.connectingPaths[path] = true
@@ -232,7 +232,7 @@ func TestApplyConnectResult_Success(t *testing.T) {
 func TestApplyConnectResult_Error(t *testing.T) {
 	log := &capturingLogger{}
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), nil, nil, log)
+	a := NewApp(mgr, nopExecutor(), nil, nil, log, nil)
 
 	path := "g.s.c"
 	a.connectingPaths[path] = true
@@ -251,7 +251,7 @@ func TestApplyConnectResult_Error(t *testing.T) {
 
 func TestApplyConnectResult_ActiveConnUpdatedToLatest(t *testing.T) {
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), nil, nil, testLogger())
+	a := NewApp(mgr, nopExecutor(), nil, nil, testLogger(), nil)
 
 	// First connection.
 	a.applyConnectResult("g.s.first", domain.Result[domainconn.Info]{
@@ -274,7 +274,7 @@ func TestApplyConnectResult_ActiveConnUpdatedToLatest(t *testing.T) {
 func TestApplyDisconnectResult_Success(t *testing.T) {
 	log := &capturingLogger{}
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), nil, nil, log)
+	a := NewApp(mgr, nopExecutor(), nil, nil, log, nil)
 
 	path := "g.s.c"
 	a.connectedPaths[path] = true
@@ -291,7 +291,7 @@ func TestApplyDisconnectResult_Success(t *testing.T) {
 func TestApplyDisconnectResult_Error(t *testing.T) {
 	log := &capturingLogger{}
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), nil, nil, log)
+	a := NewApp(mgr, nopExecutor(), nil, nil, log, nil)
 
 	path := "g.s.c"
 	a.connectedPaths[path] = true
@@ -305,7 +305,7 @@ func TestApplyDisconnectResult_Error(t *testing.T) {
 
 func TestApplyDisconnectResult_OtherActiveConnUntouched(t *testing.T) {
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), nil, nil, testLogger())
+	a := NewApp(mgr, nopExecutor(), nil, nil, testLogger(), nil)
 
 	a.connectedPaths["g.s.c"] = true
 	a.activeConn = &domainconn.Info{Path: "g.s.other"}
@@ -361,7 +361,7 @@ func treeNodeText(a *App, path string) string {
 func TestScenario_ConnectSuccess_TreeIconAndStatusBar(t *testing.T) {
 	log := &capturingLogger{}
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), testConfig(), nil, log)
+	a := NewApp(mgr, nopExecutor(), testConfig(), nil, log, nil)
 
 	// Before connect: icon is ○ (disconnected).
 	assert.Equal(t, "○", treeNodeIcon(a, testPath))
@@ -394,7 +394,7 @@ func TestScenario_ConnectSuccess_TreeIconAndStatusBar(t *testing.T) {
 func TestScenario_ConnectError_TreeIconAndStatusBar(t *testing.T) {
 	log := &capturingLogger{}
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), testConfig(), nil, log)
+	a := NewApp(mgr, nopExecutor(), testConfig(), nil, log, nil)
 
 	// Set up connecting state.
 	a.connectingPaths[testPath] = true
@@ -420,7 +420,7 @@ func TestScenario_ConnectError_TreeIconAndStatusBar(t *testing.T) {
 func TestScenario_DisconnectSuccess_TreeIconAndStatusBar(t *testing.T) {
 	log := &capturingLogger{}
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), testConfig(), nil, log)
+	a := NewApp(mgr, nopExecutor(), testConfig(), nil, log, nil)
 
 	// Set up connected state.
 	a.connectedPaths[testPath] = true
@@ -444,7 +444,7 @@ func TestScenario_DisconnectSuccess_TreeIconAndStatusBar(t *testing.T) {
 func TestScenario_DisconnectError_TreeIconAndStatusBar(t *testing.T) {
 	log := &capturingLogger{}
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), testConfig(), nil, log)
+	a := NewApp(mgr, nopExecutor(), testConfig(), nil, log, nil)
 
 	// Set up connected state.
 	a.connectedPaths[testPath] = true
@@ -466,7 +466,7 @@ func TestScenario_DisconnectError_TreeIconAndStatusBar(t *testing.T) {
 func TestScenario_FullCycle_ConnectThenDisconnect(t *testing.T) {
 	log := &capturingLogger{}
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), testConfig(), nil, log)
+	a := NewApp(mgr, nopExecutor(), testConfig(), nil, log, nil)
 
 	// Step 1: Connect.
 	a.connectingPaths[testPath] = true
@@ -499,7 +499,7 @@ func TestScenario_FullCycle_ConnectThenDisconnect(t *testing.T) {
 func TestApplyResult_Select_Success(t *testing.T) {
 	log := &capturingLogger{}
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), nil, nil, log)
+	a := NewApp(mgr, nopExecutor(), nil, nil, log, nil)
 
 	result := domain.Result[query.Result]{
 		Data: query.Result{
@@ -521,7 +521,7 @@ func TestApplyResult_Select_Success(t *testing.T) {
 func TestApplyResult_Error(t *testing.T) {
 	log := &capturingLogger{}
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), nil, nil, log)
+	a := NewApp(mgr, nopExecutor(), nil, nil, log, nil)
 	a.isExecuting = true
 
 	result := domain.Result[query.Result]{
@@ -539,7 +539,7 @@ func TestApplyResult_Error(t *testing.T) {
 func TestApplyResult_DML(t *testing.T) {
 	log := &capturingLogger{}
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), nil, nil, log)
+	a := NewApp(mgr, nopExecutor(), nil, nil, log, nil)
 
 	result := domain.Result[query.Result]{
 		Data: query.Result{
@@ -561,7 +561,7 @@ func TestApplyResult_DML(t *testing.T) {
 
 func TestHandleExecute_NoConnection(t *testing.T) {
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), nil, nil, testLogger())
+	a := NewApp(mgr, nopExecutor(), nil, nil, testLogger(), nil)
 	a.activeConn = nil
 
 	a.handleExecute()
@@ -573,7 +573,7 @@ func TestHandleExecute_NoConnection(t *testing.T) {
 
 func TestHandleExecute_EmptyQuery(t *testing.T) {
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), nil, nil, testLogger())
+	a := NewApp(mgr, nopExecutor(), nil, nil, testLogger(), nil)
 	a.activeConn = &domainconn.Info{Path: testPath}
 	a.editor.SetText("   ")
 
@@ -586,7 +586,7 @@ func TestHandleExecute_EmptyQuery(t *testing.T) {
 
 func TestHandleExecute_WhileExecuting(t *testing.T) {
 	mgr := &mockConnectionManager{}
-	a := NewApp(mgr, nopExecutor(), nil, nil, testLogger())
+	a := NewApp(mgr, nopExecutor(), nil, nil, testLogger(), nil)
 	a.activeConn = &domainconn.Info{Path: testPath}
 	a.isExecuting = true
 

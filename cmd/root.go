@@ -82,7 +82,22 @@ func runTUI(_ *cobra.Command) error {
 	}
 	querySvc := app.NewQueryService(service.GetPool(), log, maxRows)
 
-	tuiApp := tui.NewApp(service, querySvc, connResult.Data, settingsResult.Data, log)
+	// driverTypeFunc looks up the DB type ("mysql"/"postgresql") for a connection path.
+	connCfg := connResult.Data
+	driverTypeFunc := func(path string) string {
+		if connCfg == nil {
+			return "mysql"
+		}
+		entry, err := connCfg.FindConnection(path)
+		if err != nil || entry == nil {
+			return "mysql"
+		}
+		return entry.Type
+	}
+
+	catalogSvc := app.NewCatalogService(service.GetPool(), log, driverTypeFunc)
+
+	tuiApp := tui.NewApp(service, querySvc, connResult.Data, settingsResult.Data, log, catalogSvc)
 	return tuiApp.Run()
 }
 

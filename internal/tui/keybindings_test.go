@@ -44,6 +44,11 @@ func TestDispatchKeyAction(t *testing.T) {
 			expected: "noop",
 		},
 		{
+			name:     "F5 refreshes",
+			event:    tcell.NewEventKey(tcell.KeyF5, 0, tcell.ModNone),
+			expected: "refresh",
+		},
+		{
 			name:     "unrecognized key returns empty",
 			event:    tcell.NewEventKey(tcell.KeyRune, 'a', tcell.ModNone),
 			expected: "",

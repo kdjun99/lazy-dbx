@@ -14,8 +14,8 @@ type KeyAction struct {
 
 // RegisterKeybindings sets up global key capture on the tview application.
 // Ctrl+Q quits, Ctrl+C cancels running query or quits, Tab/Backtab cycle focus,
-// Ctrl+E executes query, Esc is consumed as no-op.
-func RegisterKeybindings(app *tview.Application, focusMgr *FocusManager, quit func(), onExecute func(), onCancel func() bool) {
+// Ctrl+E executes query, F5 refreshes schema, Esc is consumed as no-op.
+func RegisterKeybindings(app *tview.Application, focusMgr *FocusManager, quit func(), onExecute func(), onCancel func() bool, onRefresh func()) {
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlQ:
@@ -35,6 +35,11 @@ func RegisterKeybindings(app *tview.Application, focusMgr *FocusManager, quit fu
 			return nil
 		case tcell.KeyCtrlE:
 			onExecute()
+			return nil
+		case tcell.KeyF5:
+			if onRefresh != nil {
+				onRefresh()
+			}
 			return nil
 		case tcell.KeyEsc:
 			return nil
@@ -57,6 +62,8 @@ func DispatchKeyAction(event *tcell.EventKey) string {
 		return "focus_prev"
 	case tcell.KeyCtrlE:
 		return "execute"
+	case tcell.KeyF5:
+		return "refresh"
 	case tcell.KeyEsc:
 		return "noop"
 	}
