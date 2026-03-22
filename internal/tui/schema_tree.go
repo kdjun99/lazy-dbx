@@ -113,11 +113,14 @@ func (st *SchemaTree) LoadDatabases(databases []catalog.Database) {
 		st.root.AddChild(placeholder)
 		return
 	}
-	for _, db := range databases {
+	for i, db := range databases {
 		dbNode := tview.NewTreeNode(db.Name).
 			SetColor(tcell.ColorYellow).
 			SetReference(schemaNodeRef{NodeType: "database", Database: db.Name})
 		st.root.AddChild(dbNode)
+		if i == 0 {
+			st.view.SetCurrentNode(dbNode)
+		}
 	}
 }
 
