@@ -9,22 +9,24 @@ import (
 )
 
 func TestBuildLayout_NotNil(t *testing.T) {
-	tree := tview.NewTreeView()
+	connTree := tview.NewTreeView()
+	schemaTree := tview.NewTreeView()
 	editor := tview.NewTextView()
 	results := tview.NewTextView()
 	statusBar := tview.NewTextView()
 
-	layout := BuildLayout(tree, editor, results, statusBar)
+	layout := BuildLayout(connTree, schemaTree, editor, results, statusBar)
 	require.NotNil(t, layout)
 }
 
 func TestBuildLayout_ItemCount(t *testing.T) {
-	tree := tview.NewTreeView()
+	connTree := tview.NewTreeView()
+	schemaTree := tview.NewTreeView()
 	editor := tview.NewTextView()
 	results := tview.NewTextView()
 	statusBar := tview.NewTextView()
 
-	layout := BuildLayout(tree, editor, results, statusBar)
+	layout := BuildLayout(connTree, schemaTree, editor, results, statusBar)
 	// Outer flex has 2 items: top (horizontal flex) and bottom (statusBar)
 	assert.Equal(t, 2, layout.GetItemCount())
 }

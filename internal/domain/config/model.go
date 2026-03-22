@@ -71,9 +71,10 @@ type SettingsConfig struct {
 
 // EditorSettings holds editor-related settings.
 type EditorSettings struct {
-	TabSize  int
-	WordWrap bool
-	Theme    string
+	TabSize   int
+	WordWrap  bool
+	Theme     string
+	AutoLimit int
 }
 
 // SafetySettings holds safety-related settings.
