@@ -177,7 +177,7 @@ func (st *SchemaTree) LoadTables(database string, tables []catalog.Table) {
 		}
 		label := prefix + " " + tbl.Name
 		tableNode := tview.NewTreeNode(label).
-			SetColor(tcell.ColorWhite).
+			SetColor(tcell.ColorAqua).
 			SetReference(schemaNodeRef{NodeType: "table", Database: database, Table: tbl.Name})
 		dbNode.AddChild(tableNode)
 	}
@@ -199,7 +199,7 @@ func (st *SchemaTree) LoadColumns(database, table string, columns []catalog.Colu
 		label := col.Name + ": " + col.FormatType()
 		colNode := tview.NewTreeNode(label).
 			SetSelectable(false).
-			SetColor(tcell.ColorGray)
+			SetColor(tcell.ColorLightCyan)
 		tableNode.AddChild(colNode)
 	}
 }
